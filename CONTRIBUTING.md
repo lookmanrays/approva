@@ -53,6 +53,7 @@ pnpm cli:build
 2. Keep pull requests focused on a single problem when possible.
 3. Describe what changed, why it changed, and how you tested it.
 4. Include screenshots or terminal output when UI or operator workflows are affected.
+5. Expect pull requests to pass GitHub Actions CI for install, Prisma generate, typecheck, and build.
 
 ## Pull Request Checklist
 
