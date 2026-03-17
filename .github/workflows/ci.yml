@@ -41,7 +41,13 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            echo "pnpm-lock.yaml not found; falling back to --no-frozen-lockfile"
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma client
         run: pnpm prisma generate
@@ -70,7 +76,13 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            echo "pnpm-lock.yaml not found; falling back to --no-frozen-lockfile"
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma client
         run: pnpm prisma generate
@@ -99,7 +111,13 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            echo "pnpm-lock.yaml not found; falling back to --no-frozen-lockfile"
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Generate Prisma client
         run: pnpm prisma generate

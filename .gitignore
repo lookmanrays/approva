@@ -6,7 +6,6 @@ dist
 .env
 .env.local
 coverage
-pnpm-lock.yaml
 *.tsbuildinfo
 apps/api/.env
 apps/api/.env.test
