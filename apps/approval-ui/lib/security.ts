@@ -43,20 +43,12 @@ export function buildUiSecurityHeaders(env: NodeJS.ProcessEnv = process.env): No
   ];
 }
 
-export function isDashboardAuthSecure(env: NodeJS.ProcessEnv = process.env) {
-  return getUrlOrigin(env.AUTH_URL)?.startsWith('https://') ?? false;
-}
-
-export function getDashboardAuthCookieName(env: NodeJS.ProcessEnv = process.env) {
-  return `${isDashboardAuthSecure(env) ? '__Secure-' : ''}authjs.session-token`;
-}
-
 function buildUiCsp(env: NodeJS.ProcessEnv) {
   const connectSources = new Set<string>(["'self'"]);
 
   for (const candidate of [
     env.NEXT_PUBLIC_API_BASE_URL,
-    env.AUTH_URL,
+    env.APPROVAL_UI_BASE_URL,
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'ws://localhost:3000',

@@ -59,7 +59,9 @@ export class RateLimitMiddleware implements NestMiddleware {
       };
     }
 
-    const dashboardUserId = this.readHeader(request, 'x-authon-dashboard-user-id');
+    const dashboardUserId =
+      this.readHeader(request, 'x-approva-user-id') ??
+      this.readHeader(request, 'x-authon-dashboard-user-id');
 
     if (dashboardUserId) {
       return {
@@ -99,17 +101,6 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private getClientIp(request: Request) {
-    const forwarded = this.readHeader(request, 'x-forwarded-for');
-
-    if (forwarded) {
-      const [first] = forwarded.split(',');
-      const normalized = first?.trim();
-
-      if (normalized) {
-        return normalized;
-      }
-    }
-
     return request.ip || request.socket.remoteAddress || 'unknown';
   }
 

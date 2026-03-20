@@ -50,20 +50,26 @@ export class EmailService {
   private async sendWithMetrics(input: Parameters<TransactionalEmailClient['send']>[0]) {
     try {
       const receipt = await this.client.send(input);
-      this.metricsService.increment('authon_email_deliveries_total');
+      this.metricsService.increment('approva_email_deliveries_total');
       return receipt;
     } catch (error) {
-      this.metricsService.increment('authon_email_failures_total');
+      this.metricsService.increment('approva_email_failures_total');
       throw error;
     }
   }
 
   private getResendApiKey() {
-    return process.env.AUTHON_RESEND_API_KEY ?? process.env.AUTH_RESEND_API_KEY ?? undefined;
+    return (
+      process.env.APPROVA_RESEND_API_KEY ??
+      process.env.AUTHON_RESEND_API_KEY ??
+      process.env.AUTH_RESEND_API_KEY ??
+      undefined
+    );
   }
 
   private getFromAddress() {
     return (
+      process.env.APPROVA_EMAIL_FROM ??
       process.env.AUTHON_EMAIL_FROM ??
       process.env.AUTH_EMAIL_FROM ??
       'Approva <no-reply@approva.local>'
@@ -71,6 +77,6 @@ export class EmailService {
   }
 
   private getReplyToAddress() {
-    return process.env.AUTHON_EMAIL_REPLY_TO ?? undefined;
+    return process.env.APPROVA_EMAIL_REPLY_TO ?? process.env.AUTHON_EMAIL_REPLY_TO ?? undefined;
   }
 }

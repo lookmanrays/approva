@@ -7,25 +7,24 @@ export default function VerifyRequestPage() {
         <article className="card stack">
           <div>
             <span className="eyebrow">Approva</span>
-            <h1 className="auth-title">Check your email</h1>
+            <h1 className="auth-title">Open the console directly</h1>
           </div>
 
           <p>
-            A sign-in link was sent for your dashboard session. Open the email and follow the
-            magic link to continue into the Approva console.
+            Open the console directly for local operation, and use the approval link plus passkey
+            flow for approval decisions.
           </p>
 
           <div className="empty">
-            Local development note: if email delivery is not configured, the magic link is logged
-            in the Next.js server output.
+            This route is kept only as a compatibility landing page so older links do not break.
           </div>
 
           <div className="actions">
-            <Link className="button ghost link-button" href="/sign-in">
-              Back to sign in
-            </Link>
             <Link className="button primary link-button" href="/console/approvals">
               Go to console
+            </Link>
+            <Link className="button ghost link-button" href="/">
+              Back to landing
             </Link>
           </div>
         </article>

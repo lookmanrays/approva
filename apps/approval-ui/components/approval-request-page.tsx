@@ -199,7 +199,13 @@ export function ApprovalRequestPage({
     setAuthMessage(null);
 
     try {
+      if (!approvalAccessToken) {
+        throw new Error('Missing approval access token in URL.');
+      }
+
       const registration = await auth.register('passkey', {
+        requestId,
+        token: approvalAccessToken,
         email: approverEmail,
       });
       setAuthMessage(
@@ -224,8 +230,13 @@ export function ApprovalRequestPage({
     setAuthMessage(null);
 
     try {
+      if (!approvalAccessToken) {
+        throw new Error('Missing approval access token in URL.');
+      }
+
       const authResult = await auth.authenticate('passkey', {
         requestId,
+        token: approvalAccessToken,
         email: approverEmail,
       });
 
@@ -444,9 +455,7 @@ export function ApprovalRequestPage({
                       {new Date(result.capability.expiresAt).toISOString()}
                     </span>
                   </div>
-                  <div>
-                    Raw token <span className="mono mono-wrap">{result.capability.token}</span>
-                  </div>
+                  <div>Raw capability tokens are hidden in the approval browser UI.</div>
                 </div>
               </div>
             ) : null}

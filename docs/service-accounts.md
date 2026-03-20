@@ -1,13 +1,13 @@
 # Service Accounts And API Keys
 
-Approva supports machine-facing authentication for agents, CI/CD systems, scripts, and backend services without requiring a human dashboard session.
+Approva supports machine-facing authentication for agents, CI/CD systems, scripts, and backend services without requiring human console login.
 
 This surface is intentionally separate from:
 
-- dashboard auth
-  used for `/console/*` and other hosted control-plane routes
 - approval auth
   used for human approval decisions with secure approval URLs and passkeys
+- console access
+  used for local operator views and control-plane routes
 
 Canonical machine-flow reference:
 
@@ -31,7 +31,6 @@ Fields stored today:
 - `organization_id`
 - `name`
 - `description`
-- `created_by_user_id`
 - `created_at`
 - `revoked_at`
 
@@ -48,7 +47,6 @@ Fields stored today:
 - `key_prefix`
 - `key_hash`
 - `scopes`
-- `created_by_user_id`
 - `last_used_at`
 - `revoked_at`
 - `created_at`
@@ -65,7 +63,7 @@ Important behavior:
 Machine clients authenticate with:
 
 ```http
-Authorization: Bearer authon_sk_...
+Authorization: Bearer approva_sk_...
 ```
 
 Approva generates keys with cryptographically secure random bytes and never stores the raw value after creation.
@@ -144,7 +142,7 @@ Copy the raw key immediately. Approva does not reveal it again.
 
 ```bash
 curl -X POST http://localhost:4000/v1/approval-requests \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "requestedBy": {
@@ -181,7 +179,7 @@ Exchange it immediately:
 
 ```bash
 curl -X POST http://localhost:4000/v1/capabilities/exchange \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "exchangeToken": "cex_..."
@@ -198,14 +196,14 @@ The response includes:
 
 ```bash
 curl http://localhost:4000/v1/approval-requests/<request-id> \
-  -H "Authorization: Bearer authon_sk_..."
+  -H "Authorization: Bearer approva_sk_..."
 ```
 
 ### 6. Use a granted capability
 
 ```bash
 curl -X POST http://localhost:4000/v1/capabilities/use \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "token": "cap_...",
@@ -244,6 +242,6 @@ These routes are operator/admin-facing surfaces. They do not replace the human a
 - API key scopes are intentionally small in the current open-core runtime
 - there is no per-key IP allowlist or expiration model yet
 - there is no per-service-account policy routing or workload identity exchange yet
-- dashboard auth, approval auth, and machine auth are separate systems by design
+- console access, approval auth, and machine auth are separate systems by design
 - open-core mode can still use these management pages through the default organization path
 - exchange tokens are short-lived and single-use; they are a delivery path for the raw opaque capability token, not a second reusable capability

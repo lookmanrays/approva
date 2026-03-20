@@ -32,14 +32,14 @@ export class CapabilityController {
   @ApiHeader({
     name: 'Authorization',
     required: false,
-    description: 'Optional machine auth bearer token in the format Bearer authon_sk_....',
+    description: 'Optional machine auth bearer token in the format Bearer approva_sk_....',
   })
   @ApiOkResponse({ description: 'Capability verification result.' })
   async verify(
     @Body() input: VerifyCapabilityDto,
     @Headers('authorization') authorization?: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<CapabilityVerificationResult> {
     const machinePrincipal = await this.machineAuthService.authenticateFromAuthorizationHeader(
       authorization,
@@ -66,14 +66,14 @@ export class CapabilityController {
   @ApiHeader({
     name: 'Authorization',
     required: false,
-    description: 'Optional machine auth bearer token in the format Bearer authon_sk_....',
+    description: 'Optional machine auth bearer token in the format Bearer approva_sk_....',
   })
   @ApiOkResponse({ description: 'Capability usage result.' })
   async use(
     @Body() input: VerifyCapabilityDto,
     @Headers('authorization') authorization?: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<CapabilityUseResult> {
     const machinePrincipal = await this.machineAuthService.authenticateFromAuthorizationHeader(
       authorization,
@@ -102,7 +102,7 @@ export class CapabilityController {
   @ApiHeader({
     name: 'Authorization',
     required: true,
-    description: 'Machine auth bearer token in the format Bearer authon_sk_....',
+    description: 'Machine auth bearer token in the format Bearer approva_sk_....',
   })
   @ApiOkResponse({ description: 'Capability exchange result.' })
   async exchange(

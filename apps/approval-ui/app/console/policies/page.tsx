@@ -1,8 +1,8 @@
-import { getDashboardPermissionContext } from '@/lib/dashboard-auth/permissions';
+import { getConsolePermissionContext } from '@/lib/console-permissions';
 import { ConsolePoliciesPage } from '@/components/console/console-policies-page';
 
 export default async function ConsolePoliciesRoute() {
-  const context = await getDashboardPermissionContext();
+  const context = await getConsolePermissionContext();
 
   return (
     <ConsolePoliciesPage

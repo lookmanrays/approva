@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -36,7 +37,6 @@ import {
 } from '../../common/utils/prisma-json.util';
 import { EventChainService } from '../audit/event-chain.service';
 import type { AuthenticatedApproverSession } from '../auth/auth.service';
-import { BillingService } from '../billing/billing.service';
 import { CapabilityService } from '../capability/capability.service';
 import { NotificationService } from '../notification/notification.service';
 import { OrganizationRbacService } from '../organizations/organization-rbac.service';
@@ -167,7 +167,6 @@ export class ApprovalRequestsService {
     private readonly prisma: PrismaService,
     private readonly policyService: PolicyService,
     private readonly capabilityService: CapabilityService,
-    private readonly billingService: BillingService,
     private readonly eventChainService: EventChainService,
     private readonly webhookService: WebhookService,
     private readonly notificationService: NotificationService,
@@ -224,8 +223,6 @@ export class ApprovalRequestsService {
         idempotentReplay: true,
       });
     }
-
-    await this.billingService.assertApprovalRequestAllowed(organization.id);
 
     try {
       const outcome = await this.runSerializableTransaction(async (tx): Promise<CreateRequestOutcome> => {
@@ -442,7 +439,7 @@ export class ApprovalRequestsService {
       });
 
       if (outcome.shouldNotifyPending) {
-        this.metricsService.increment('authon_approval_requests_created_total');
+        this.metricsService.increment('approva_approval_requests_created_total');
         await this.notificationService.notifyPendingApproval({
           organizationId: outcome.request.organizationId,
           approvalRequestId: outcome.request.id,
@@ -461,13 +458,13 @@ export class ApprovalRequestsService {
       }
 
       if (!outcome.idempotentReplay && outcome.request.status === 'auto_approved') {
-        this.metricsService.increment('authon_approval_requests_created_total');
-        this.metricsService.increment('authon_policy_auto_approve_total');
+        this.metricsService.increment('approva_approval_requests_created_total');
+        this.metricsService.increment('approva_policy_auto_approve_total');
       }
 
       if (!outcome.idempotentReplay && outcome.request.status === 'rejected') {
-        this.metricsService.increment('authon_approval_requests_created_total');
-        this.metricsService.increment('authon_policy_reject_total');
+        this.metricsService.increment('approva_approval_requests_created_total');
+        this.metricsService.increment('approva_policy_reject_total');
       }
 
       await this.deliverWebhookIfQueued(outcome);
@@ -725,7 +722,7 @@ export class ApprovalRequestsService {
     const organization = await this.organizationsService.resolveOrganization(organizationInput);
     this.requestContextService.setOrganizationId(organization.id);
     const outcome = await this.transitionPendingRequest(id, organization.id, 'approved', input);
-    this.metricsService.increment('authon_approval_requests_approved_total');
+    this.metricsService.increment('approva_approval_requests_approved_total');
     await this.deliverWebhookIfQueued(outcome);
     await this.notifyOutcomeIfNeeded(outcome);
 
@@ -751,7 +748,7 @@ export class ApprovalRequestsService {
       this.buildPasskeyDecisionInput(session, input),
       token,
     );
-    this.metricsService.increment('authon_approval_requests_approved_total');
+    this.metricsService.increment('approva_approval_requests_approved_total');
     await this.deliverWebhookIfQueued(outcome);
     await this.notifyOutcomeIfNeeded(outcome);
 
@@ -768,7 +765,7 @@ export class ApprovalRequestsService {
     const organization = await this.organizationsService.resolveOrganization(organizationInput);
     this.requestContextService.setOrganizationId(organization.id);
     const outcome = await this.transitionPendingRequest(id, organization.id, 'rejected', input);
-    this.metricsService.increment('authon_approval_requests_denied_total');
+    this.metricsService.increment('approva_approval_requests_denied_total');
     await this.deliverWebhookIfQueued(outcome);
     await this.notifyOutcomeIfNeeded(outcome);
 
@@ -792,7 +789,7 @@ export class ApprovalRequestsService {
       this.buildPasskeyDecisionInput(session, input),
       token,
     );
-    this.metricsService.increment('authon_approval_requests_denied_total');
+    this.metricsService.increment('approva_approval_requests_denied_total');
     await this.deliverWebhookIfQueued(outcome);
     await this.notifyOutcomeIfNeeded(outcome);
 
@@ -1579,10 +1576,18 @@ export class ApprovalRequestsService {
   }
 
   private getApprovalAccessToken(requestId: string) {
+    const secret = process.env.APPROVAL_ACCESS_TOKEN_SECRET?.trim();
+
+    if (!secret) {
+      throw new InternalServerErrorException(
+        'APPROVAL_ACCESS_TOKEN_SECRET is not configured.',
+      );
+    }
+
     return buildSignedToken({
       prefix: 'aat',
       subject: requestId,
-      secret: process.env.APPROVAL_ACCESS_TOKEN_SECRET ?? 'dev-approval-access-secret',
+      secret,
     });
   }
 
@@ -1675,10 +1680,10 @@ export class ApprovalRequestsService {
   ): Promise<ApproverAuthorizationSummary> {
     if (input.authMethod !== 'passkey') {
       return {
-        authorized: true,
-        code: 'authorized',
-        message: 'Decision authorization not scoped by passkey roles for this auth method.',
-        allowedRoles: [],
+        authorized: false,
+        code: 'not_authenticated',
+        message: 'A passkey-authenticated approval session is required to record a decision.',
+        allowedRoles: this.extractAllowedApproverRoles(request.policyResult),
         approverEmail: this.extractApproverEmail(input),
         approverRole: null,
       };
@@ -1701,7 +1706,7 @@ export class ApprovalRequestsService {
     authMethod?: string | null;
     authorization: ApproverAuthorizationSummary;
   }) {
-    this.metricsService.increment('authon_approval_requests_denied_total');
+    this.metricsService.increment('approva_approval_requests_denied_total');
     await this.eventChainService.recordEvent({
       organizationId: input.organizationId,
       approvalRequestId: input.requestId,

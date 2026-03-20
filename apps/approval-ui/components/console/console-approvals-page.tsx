@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useState } from 'react';
 import type {
   ApprovalRequest,
   ApprovalRequestStatus,
-  AuthonRuntimeMode,
   InternalApprovalRequestFilters,
   InternalApprovalRequestListResponse,
   RiskLevel,
@@ -63,21 +62,17 @@ function normalizeFilters(filters: FilterFormState): InternalApprovalRequestFilt
 
 function getFriendlyApprovalListError(message: string) {
   if (message.includes('ACTIVE_ORGANIZATION_REQUIRED')) {
-    return 'No active organization is selected yet. Sign in with a user that already belongs to an organization before using the console.';
+    return 'The API could not resolve the self-host default organization yet. Make sure the API is running and can create the default organization.';
   }
 
   if (message.includes('Dashboard authentication is required')) {
-    return 'Sign in to the dashboard before using the console.';
+    return 'The API build is stale. Restart the latest self-host API build and try again.';
   }
 
   return message;
 }
 
-export function ConsoleApprovalsPage({
-  runtimeMode,
-}: {
-  runtimeMode: AuthonRuntimeMode;
-}) {
+export function ConsoleApprovalsPage() {
   const [filters, setFilters] = useState<FilterFormState>(EMPTY_FILTERS);
   const [result, setResult] = useState<InternalApprovalRequestListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,9 +113,7 @@ export function ConsoleApprovalsPage({
             <div className="label">Getting started</div>
             <h2>How to use the approvals inbox</h2>
           </div>
-          <span className="eyebrow">
-            {runtimeMode === 'open-core' ? 'Open Core' : 'Authenticated'}
-          </span>
+          <span className="eyebrow">Operator Console</span>
         </div>
         <div className="console-detail-list">
           <div className="console-detail-item">

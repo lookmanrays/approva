@@ -1,18 +1,11 @@
 import Link from 'next/link';
-import type { AuthonRuntimeMode } from '@approva/shared';
 import { SiteFooter } from '@/components/site-footer';
 
-function getRuntimeLabel(runtimeMode: AuthonRuntimeMode) {
-  return runtimeMode === 'open-core' ? 'Approva Open Core' : 'Approva';
-}
-
-export function HelpPage({ runtimeMode }: { runtimeMode: AuthonRuntimeMode }) {
-  const runtimeLabel = getRuntimeLabel(runtimeMode);
-
+export function HelpPage() {
   return (
     <main className="shell auth-shell">
       <section className="hero">
-        <span className="eyebrow">{runtimeLabel}</span>
+        <span className="eyebrow">Approva</span>
         <h1>Get started with Approva</h1>
         <p>
           Approva lets agents and automations keep moving while routing risky actions through a
@@ -91,9 +84,8 @@ export function HelpPage({ runtimeMode }: { runtimeMode: AuthonRuntimeMode }) {
           </div>
 
           <div className="empty">
-            {runtimeMode === 'open-core'
-              ? 'You are in open-core mode. The default organization, console, and approval runtime are ready for self-host use.'
-              : 'This deployment is using authenticated operator-console behavior.'}
+            The default organization, operator console, and approval runtime are ready for
+            self-host use.
           </div>
         </aside>
       </section>
@@ -174,9 +166,9 @@ export function HelpPage({ runtimeMode }: { runtimeMode: AuthonRuntimeMode }) {
           <h2>Run the open-core foundation yourself</h2>
         </div>
         <p>
-          Open Core runs with a default organization, direct console access, passkey approvals,
-          capabilities, audit events, immutable log, and ledger verification without requiring the
-          hosted-only repository additions.
+          Approva runs with a default organization, direct console access, passkey approvals,
+          capabilities, audit events, immutable log, and ledger verification in this self-hosted
+          repository.
         </p>
         <div className="empty">
           Use the self-host Docker and env templates in the repository for the single-organization

@@ -4,10 +4,8 @@ import type {
   OrganizationMemberRole,
   OrganizationPermission,
 } from '@approva/shared';
-import { hasOrganizationPermission } from '@approva/shared';
 import type { PrismaDbClient } from '../../common/prisma/prisma.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { isOpenCoreRuntimeMode } from '../../common/utils/runtime-mode.util';
 import {
   type OrganizationContextInput,
   OrganizationsService,
@@ -32,47 +30,22 @@ export class OrganizationRbacService {
     dashboardUserId?: string | null,
     prisma: PrismaDbClient = this.prisma,
   ): Promise<AuthorizedOrganizationMember> {
-    const userId = this.normalizeOptionalString(dashboardUserId);
+    void permission;
+    void dashboardUserId;
     const organization = await this.organizationsService.resolveOrganization(
       organizationInput,
       prisma,
     );
+    const operator = await this.organizationsService.ensureLocalOperatorOwnership(
+      organization.id,
+      prisma,
+    );
 
-    if (!userId) {
-      if (isOpenCoreRuntimeMode()) {
-        return {
-          organizationId: organization.id,
-          userId: 'open-core-operator',
-          role: 'owner',
-        };
-      }
-
-      throw new ForbiddenException('Dashboard membership context is required.');
-    }
-
-    const membership = await prisma.organizationMember.findFirst({
-      where: {
-        organizationId: organization.id,
-        userId,
-      },
-      select: {
-        organizationId: true,
-        userId: true,
-        role: true,
-      },
-    });
-
-    if (!membership) {
-      throw new ForbiddenException('You are not a member of this organization.');
-    }
-
-    if (!hasOrganizationPermission(membership.role, permission)) {
-      throw new ForbiddenException(
-        `Role ${membership.role} does not have permission for ${permission}.`,
-      );
-    }
-
-    return membership;
+    return {
+      organizationId: organization.id,
+      userId: operator.userId,
+      role: operator.role,
+    };
   }
 
   async requireApproverRole(
@@ -147,7 +120,14 @@ export class OrganizationRbacService {
       },
     });
 
-    if (!membership) {
+    const fallbackAuthorization = await this.getDefaultOrganizationFallbackAuthorization(
+      organizationId,
+      email,
+      allowedRoles,
+      prisma,
+    );
+
+    if (!membership && !fallbackAuthorization) {
       return {
         authorized: false,
         code: 'not_member_of_organization',
@@ -160,11 +140,11 @@ export class OrganizationRbacService {
       };
     }
 
-    if (!allowedRoles.includes(membership.role)) {
+    if (membership && allowedRoles.includes(membership.role)) {
       return {
-        authorized: false,
-        code: 'role_not_allowed',
-        message: `You are not authorized to approve this request. Allowed roles: ${allowedRoles.join(', ')}.`,
+        authorized: true,
+        code: 'authorized',
+        message: 'This approver is authorized for the matched policy roles on this request.',
         allowedRoles,
         approverEmail: email,
         approverRole: membership.role,
@@ -172,19 +152,58 @@ export class OrganizationRbacService {
       };
     }
 
+    if (fallbackAuthorization) {
+      return fallbackAuthorization;
+    }
+
     return {
-      authorized: true,
-      code: 'authorized',
-      message: 'This approver is authorized for the matched policy roles on this request.',
+      authorized: false,
+      code: 'role_not_allowed',
+      message: `You are not authorized to approve this request. Allowed roles: ${allowedRoles.join(', ')}.`,
       allowedRoles,
       approverEmail: email,
-      approverRole: membership.role,
-      userId: membership.userId,
+      approverRole: membership?.role ?? null,
+      userId: membership?.userId ?? null,
     };
   }
 
   private normalizeOptionalString(value?: string | null) {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private async getDefaultOrganizationFallbackAuthorization(
+    organizationId: string,
+    approverEmail: string,
+    allowedRoles: OrganizationMemberRole[],
+    prisma: PrismaDbClient,
+  ): Promise<
+    | (ApproverAuthorizationSummary & {
+        userId?: string | null;
+      })
+    | null
+  > {
+    if (!(await this.organizationsService.isDefaultOrganizationId(organizationId, prisma))) {
+      return null;
+    }
+
+    const operator = await this.organizationsService.ensureLocalOperatorOwnership(
+      organizationId,
+      prisma,
+    );
+
+    if (approverEmail === operator.email && allowedRoles.includes('owner')) {
+      return {
+        authorized: true,
+        code: 'authorized',
+        message: 'The self-host operator is authorized as the default organization owner.',
+        allowedRoles,
+        approverEmail,
+        approverRole: 'owner',
+        userId: operator.userId,
+      };
+    }
+
+    return null;
   }
 }

@@ -30,10 +30,10 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/approva?schema=public
-      AUTHON_RUNTIME_MODE: open-core
-      AUTHON_SELF_HOST_MODE: "true"
-      AUTHON_DEFAULT_ORGANIZATION_NAME: Default Organization
-      AUTHON_DEFAULT_ORGANIZATION_SLUG: default
+      APPROVA_RUNTIME_MODE: open-core
+      APPROVA_SELF_HOST_MODE: "true"
+      APPROVA_DEFAULT_ORGANIZATION_NAME: Default Organization
+      APPROVA_DEFAULT_ORGANIZATION_SLUG: default
       APPROVAL_UI_BASE_URL: http://localhost:3000
       CAPABILITY_TTL_MINUTES: 15
       APPROVAL_ACCESS_TOKEN_SECRET: change-me-approval-access
@@ -42,11 +42,11 @@ services:
       PASSKEY_EXPECTED_ORIGINS: http://localhost:3000
       APPROVER_SESSION_TTL_MINUTES: 480
       PASSKEY_CHALLENGE_TTL_MINUTES: 5
-      AUTHON_RATE_LIMIT_ENABLED: "true"
-      AUTHON_RATE_LIMIT_GLOBAL: 60
-      AUTHON_RATE_LIMIT_AUTHENTICATED: 300
+      APPROVA_RATE_LIMIT_ENABLED: "true"
+      APPROVA_RATE_LIMIT_GLOBAL: 60
+      APPROVA_RATE_LIMIT_AUTHENTICATED: 300
     command: >
-      sh -lc "pnpm prisma db push --skip-generate && pnpm --filter @approva/api start"
+      sh -lc "pnpm prisma db push --skip-generate && pnpm prisma db seed && pnpm --filter @approva/api start"
     ports:
       - "4000:4000"
 
@@ -63,12 +63,12 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/approva?schema=public
-      AUTHON_RUNTIME_MODE: open-core
-      AUTHON_SELF_HOST_MODE: "true"
-      AUTHON_DEFAULT_ORGANIZATION_NAME: Default Organization
-      AUTHON_DEFAULT_ORGANIZATION_SLUG: default
+      APPROVA_RUNTIME_MODE: open-core
+      APPROVA_SELF_HOST_MODE: "true"
+      APPROVA_DEFAULT_ORGANIZATION_NAME: Default Organization
+      APPROVA_DEFAULT_ORGANIZATION_SLUG: default
       NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
-      AUTHON_INTERNAL_API_BASE_URL: http://approva-api:4000
+      APPROVA_INTERNAL_API_BASE_URL: http://approva-api:4000
       AUTH_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
     ports:

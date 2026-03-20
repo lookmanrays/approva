@@ -1,29 +1,29 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import {
+  proxyApprovaJson,
+  getConsoleOperatorContext,
   getConsoleProxyOrganization,
-  getRequiredDashboardSession,
-  proxyAuthonJson,
-  requireDashboardSession,
-} from '@/lib/dashboard-auth/proxy';
+  requireConsoleAccess,
+} from '@/lib/console-proxy';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
   const query = request.nextUrl.searchParams.toString();
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     `/v1/internal/approval-requests${query ? `?${query}` : ''}`,
     {
       method: 'GET',
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }
 

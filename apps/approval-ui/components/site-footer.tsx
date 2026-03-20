@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getAuthonReleaseLabel, getAuthonRuntimeMode } from '@/lib/runtime-mode';
+import { getReleaseLabel } from '@/lib/self-host';
 
 const LINKS = [
   { href: '/privacy', label: 'Privacy' },
@@ -9,14 +9,13 @@ const LINKS = [
 ];
 
 export function SiteFooter() {
-  const runtimeMode = getAuthonRuntimeMode();
-  const releaseLabel = getAuthonReleaseLabel();
+  const releaseLabel = getReleaseLabel();
 
   return (
     <footer className="site-footer">
       <div className="site-footer-copy">
         <span className="eyebrow">
-          Approva · {runtimeMode === 'open-core' ? 'Open Core' : 'Authenticated Console'} · {releaseLabel}
+          Approva · Open Core · {releaseLabel}
         </span>
         <p>
           Human approval infrastructure for AI actions, packaged here as a self-hostable open-core

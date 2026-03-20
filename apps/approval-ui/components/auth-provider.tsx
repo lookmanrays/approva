@@ -31,8 +31,16 @@ export interface AuthMethod {
   id: string;
   label: string;
   isAvailable(): boolean | Promise<boolean>;
-  register(input: { email: string }): Promise<PasskeyRegistrationFinishResponse>;
-  authenticate(input: { requestId: string; email: string }): Promise<AuthResult>;
+  register(input: {
+    requestId: string;
+    token: string;
+    email: string;
+  }): Promise<PasskeyRegistrationFinishResponse>;
+  authenticate(input: {
+    requestId: string;
+    token: string;
+    email: string;
+  }): Promise<AuthResult>;
 }
 
 class PasskeyAuthMethod implements AuthMethod {
@@ -43,9 +51,11 @@ class PasskeyAuthMethod implements AuthMethod {
     return browserSupportsWebAuthn();
   }
 
-  async register(input: { email: string }) {
+  async register(input: { requestId: string; token: string; email: string }) {
     const client = getApprovalClient();
     const start = await client.startPasskeyRegistration({
+      requestId: input.requestId,
+      token: input.token,
       email: input.email,
     });
     const response = await startRegistration({
@@ -54,14 +64,20 @@ class PasskeyAuthMethod implements AuthMethod {
     });
 
     return client.finishPasskeyRegistration({
+      requestId: input.requestId,
+      token: input.token,
       email: input.email,
       response: response as unknown as Record<string, unknown>,
     });
   }
 
-  async authenticate(input: { requestId: string; email: string }): Promise<AuthResult> {
+  async authenticate(
+    input: { requestId: string; token: string; email: string },
+  ): Promise<AuthResult> {
     const client = getApprovalClient();
     const start = await client.startPasskeyAuthentication({
+      requestId: input.requestId,
+      token: input.token,
       email: input.email,
     });
     const response = await startAuthentication({
@@ -70,6 +86,8 @@ class PasskeyAuthMethod implements AuthMethod {
     });
     const finish: PasskeyAuthenticationFinishResponse =
       await client.finishPasskeyAuthentication({
+        requestId: input.requestId,
+        token: input.token,
         email: input.email,
         response: response as unknown as Record<string, unknown>,
       });
@@ -94,8 +112,14 @@ interface AuthContextValue {
   sessionLoading: boolean;
   refreshSession(): Promise<ApproverSessionState>;
   logout(): Promise<ApproverSessionState>;
-  register(methodId: string, input: { email: string }): Promise<PasskeyRegistrationFinishResponse>;
-  authenticate(methodId: string, input: { requestId: string; email: string }): Promise<AuthResult>;
+  register(
+    methodId: string,
+    input: { requestId: string; token: string; email: string },
+  ): Promise<PasskeyRegistrationFinishResponse>;
+  authenticate(
+    methodId: string,
+    input: { requestId: string; token: string; email: string },
+  ): Promise<AuthResult>;
 }
 
 const authMethods = [new PasskeyAuthMethod()];

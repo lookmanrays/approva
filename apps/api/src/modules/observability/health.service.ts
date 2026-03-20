@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
-  getAuthonApiEnvironmentIssues,
-  getAuthonIntegrationEncryptionKeyMaterial,
-  getAuthonRuntimeMode,
-  getConfiguredAuthonRuntimeMode,
-  type AuthonRuntimeMode,
+  getApprovaApiEnvironmentIssues,
+  getApprovaIntegrationEncryptionKeyMaterial,
 } from '@approva/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -29,7 +26,7 @@ export interface OptionalProviderChecks {
 
 export interface LivenessResponse {
   status: OverallHealthStatus;
-  runtimeMode: AuthonRuntimeMode;
+  runtimeMode: 'open-core';
   checks: {
     process: HealthCheckResult;
   };
@@ -38,7 +35,7 @@ export interface LivenessResponse {
 
 export interface ReadinessResponse {
   status: OverallHealthStatus;
-  runtimeMode: AuthonRuntimeMode;
+  runtimeMode: 'open-core';
   checks: {
     runtimeMode: HealthCheckResult;
     config: HealthCheckResult;
@@ -56,7 +53,7 @@ export class HealthService {
   getLiveness(): LivenessResponse {
     return {
       status: 'ok',
-      runtimeMode: getAuthonRuntimeMode(process.env),
+      runtimeMode: 'open-core',
       checks: {
         process: {
           status: 'ok',
@@ -69,12 +66,11 @@ export class HealthService {
   }
 
   async getReadiness() {
-    const runtimeMode = getAuthonRuntimeMode(process.env);
-    const runtimeModeCheck = this.getRuntimeModeCheck(runtimeMode);
+    const runtimeModeCheck = this.getRuntimeModeCheck();
     const configCheck = this.getConfigCheck();
     const databaseCheck = await this.getDatabaseCheck();
-    const encryptionCheck = this.getEncryptionCheck(runtimeMode);
-    const providersCheck = this.getOptionalProviderChecks(runtimeMode);
+    const encryptionCheck = this.getEncryptionCheck();
+    const providersCheck = this.getOptionalProviderChecks();
 
     const response: ReadinessResponse = {
       status:
@@ -83,7 +79,7 @@ export class HealthService {
         )
           ? 'not_ready'
           : 'ready',
-      runtimeMode,
+      runtimeMode: 'open-core',
       checks: {
         runtimeMode: runtimeModeCheck,
         config: configCheck,
@@ -100,40 +96,19 @@ export class HealthService {
     };
   }
 
-  private getRuntimeModeCheck(runtimeMode: AuthonRuntimeMode): HealthCheckResult {
-    const configuredRuntimeMode = getConfiguredAuthonRuntimeMode(process.env);
-
-    if (
-      configuredRuntimeMode &&
-      configuredRuntimeMode !== 'open-core' &&
-      configuredRuntimeMode !== 'cloud'
-    ) {
-      return {
-        status: 'error',
-        required: true,
-        details: 'AUTHON_RUNTIME_MODE has an unsupported value.',
-        metadata: {
-          configuredRuntimeMode,
-          resolvedRuntimeMode: runtimeMode,
-        },
-      };
-    }
-
+  private getRuntimeModeCheck(): HealthCheckResult {
     return {
       status: 'ok',
       required: true,
-      details: 'Runtime mode is valid.',
+      details: 'Self-host runtime is active.',
       metadata: {
-        configuredRuntimeMode: configuredRuntimeMode ?? null,
-        resolvedRuntimeMode: runtimeMode,
+        resolvedRuntimeMode: 'open-core',
       },
     };
   }
 
   private getConfigCheck(): HealthCheckResult {
-    const issues = getAuthonApiEnvironmentIssues(process.env).filter(
-      (issue) => issue.name !== 'AUTHON_RUNTIME_MODE',
-    );
+    const issues = getApprovaApiEnvironmentIssues(process.env);
 
     if (issues.length > 0) {
       return {
@@ -182,40 +157,18 @@ export class HealthService {
     }
   }
 
-  private getEncryptionCheck(runtimeMode: AuthonRuntimeMode): HealthCheckResult {
-    const configuredKey = process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY?.trim() ?? null;
-    const keyMaterial = getAuthonIntegrationEncryptionKeyMaterial(configuredKey);
-
-    if (runtimeMode === 'cloud') {
-      if (!configuredKey) {
-        return {
-          status: 'error',
-          required: true,
-          details: 'Integration encryption key is required in cloud mode.',
-        };
-      }
-
-      if (!keyMaterial) {
-        return {
-          status: 'error',
-          required: true,
-          details:
-            'Integration encryption key is present but malformed. Expected 32-byte base64 or 64-character hex.',
-        };
-      }
-
-      return {
-        status: 'ok',
-        required: true,
-        details: 'Integration encryption key is available.',
-      };
-    }
+  private getEncryptionCheck(): HealthCheckResult {
+    const configuredKey =
+      process.env.APPROVA_INTEGRATION_ENCRYPTION_KEY?.trim() ??
+      process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY?.trim() ??
+      null;
+    const keyMaterial = getApprovaIntegrationEncryptionKeyMaterial(configuredKey);
 
     if (!configuredKey) {
       return {
         status: 'skipped',
         required: false,
-        details: 'Integration encryption key is optional in open-core mode.',
+        details: 'Integration encryption key is optional for self-host installs.',
       };
     }
 
@@ -235,25 +188,26 @@ export class HealthService {
     };
   }
 
-  private getOptionalProviderChecks(
-    runtimeMode: AuthonRuntimeMode,
-  ): OptionalProviderChecks {
+  private getOptionalProviderChecks(): OptionalProviderChecks {
     const resendConfigured = Boolean(
-      process.env.AUTHON_RESEND_API_KEY?.trim() &&
-        (process.env.AUTHON_EMAIL_FROM?.trim() || process.env.AUTH_EMAIL_FROM?.trim()),
+      (process.env.APPROVA_RESEND_API_KEY?.trim() ||
+        process.env.AUTHON_RESEND_API_KEY?.trim()) &&
+        (process.env.APPROVA_EMAIL_FROM?.trim() ||
+          process.env.AUTHON_EMAIL_FROM?.trim() ||
+          process.env.AUTH_EMAIL_FROM?.trim()),
     );
     const slackConfigured = Boolean(
-      process.env.AUTHON_SLACK_BOT_TOKEN?.trim() &&
-        process.env.AUTHON_SLACK_CHANNEL_ID?.trim(),
+      (process.env.APPROVA_SLACK_BOT_TOKEN?.trim() ||
+        process.env.AUTHON_SLACK_BOT_TOKEN?.trim()) &&
+        (process.env.APPROVA_SLACK_CHANNEL_ID?.trim() ||
+          process.env.AUTHON_SLACK_CHANNEL_ID?.trim()),
     );
     const resend = this.createProviderCheck(
-      runtimeMode,
       resendConfigured,
       'Resend email delivery is configured.',
       'Resend is not fully configured. Email delivery will fall back to local logging or remain unavailable.',
     );
     const slack = this.createProviderCheck(
-      runtimeMode,
       slackConfigured,
       'Slack fallback delivery is configured.',
       'Slack fallback delivery is not configured. Organization-scoped Slack integrations may still work if configured in the product.',
@@ -271,7 +225,7 @@ export class HealthService {
         overallStatus === 'ok'
           ? 'Optional providers are configured.'
           : overallStatus === 'skipped'
-            ? 'Optional providers are skipped in open-core mode unless explicitly configured.'
+            ? 'Optional providers are not configured.'
             : 'Some optional providers are not configured. Core readiness is unaffected.',
       providers: {
         resend,
@@ -281,7 +235,6 @@ export class HealthService {
   }
 
   private createProviderCheck(
-    runtimeMode: AuthonRuntimeMode,
     configured: boolean,
     configuredDetails: string,
     missingDetails: string,
@@ -294,16 +247,8 @@ export class HealthService {
       };
     }
 
-    if (runtimeMode === 'open-core') {
-      return {
-        status: 'skipped',
-        required: false,
-        details: 'Optional in open-core mode.',
-      };
-    }
-
     return {
-      status: 'warn',
+      status: 'skipped',
       required: false,
       details: missingDetails,
     };

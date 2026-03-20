@@ -1,36 +1,36 @@
-import NextAuth, { type NextAuthResult } from 'next-auth';
-import { PrismaAdapter } from '@auth/prisma-adapter';
-import { getOpenCoreDashboardAuthSecret } from '@approva/config';
-import authConfig from '@/auth.config';
-import { prisma } from '@/lib/dashboard-auth/prisma';
-import { buildDashboardAuthProviders } from '@/lib/dashboard-auth/providers';
-import {
-  getDashboardAuthCookieName,
-  isDashboardAuthSecure,
-} from '@/lib/security';
+import { redirect } from 'next/navigation';
+import { NextResponse } from 'next/server';
 
-const dashboardAuthSecure = isDashboardAuthSecure(process.env);
+interface LocalDashboardRedirectOptions {
+  redirectTo?: string;
+}
 
-const nextAuth = NextAuth({
-  ...authConfig,
-  secret: getOpenCoreDashboardAuthSecret(process.env),
-  adapter: PrismaAdapter(prisma),
-  providers: buildDashboardAuthProviders(),
-  useSecureCookies: dashboardAuthSecure,
-  cookies: {
-    sessionToken: {
-      name: getDashboardAuthCookieName(process.env),
-      options: {
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: dashboardAuthSecure,
-      },
-    },
-  },
-});
+function normalizeConsolePath(path?: string | null) {
+  return path?.startsWith('/') ? path : '/console/approvals';
+}
 
-export const handlers: NextAuthResult['handlers'] = nextAuth.handlers;
-export const auth: NextAuthResult['auth'] = nextAuth.auth;
-export const signIn: NextAuthResult['signIn'] = nextAuth.signIn;
-export const signOut: NextAuthResult['signOut'] = nextAuth.signOut;
+function redirectToLocalConsole(request: Request) {
+  return NextResponse.redirect(new URL('/console/approvals', request.url));
+}
+
+// Preserve the old auth export surface so existing UI routes keep working while
+// the self-host console redirects directly to the local operator view.
+export const handlers = {
+  GET: async (request: Request) => redirectToLocalConsole(request),
+  POST: async (request: Request) => redirectToLocalConsole(request),
+};
+
+export async function auth() {
+  return null;
+}
+
+export async function signIn(
+  _provider?: string,
+  options?: LocalDashboardRedirectOptions,
+) {
+  redirect(normalizeConsolePath(options?.redirectTo));
+}
+
+export async function signOut(options?: LocalDashboardRedirectOptions) {
+  redirect(normalizeConsolePath(options?.redirectTo));
+}

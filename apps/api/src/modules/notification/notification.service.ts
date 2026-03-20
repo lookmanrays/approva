@@ -163,7 +163,10 @@ export class NotificationService {
       return configuredRecipients;
     }
 
-    const raw = process.env.AUTHON_APPROVAL_NOTIFICATION_TO ?? '';
+    const raw =
+      process.env.APPROVA_APPROVAL_NOTIFICATION_TO ??
+      process.env.AUTHON_APPROVAL_NOTIFICATION_TO ??
+      '';
 
     return raw
       .split(',')

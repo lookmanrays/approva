@@ -254,7 +254,7 @@ export function ConsolePoliciesPage({
             <div className="label">Policy list</div>
             <h2>{loading ? 'Loading...' : `${policies.length} polic${policies.length === 1 ? 'y' : 'ies'}`}</h2>
           </div>
-          <p className="helper">Scoped to the active organization in the dashboard session.</p>
+          <p className="helper">Scoped to the active self-host organization.</p>
         </div>
 
         {loading ? <div className="empty">Loading policies...</div> : null}

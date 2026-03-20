@@ -2,18 +2,9 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AuthonRuntimeMode } from '@approva/shared';
 import { SiteFooter } from '@/components/site-footer';
 
-function getRuntimeLabel(runtimeMode: AuthonRuntimeMode) {
-  return runtimeMode === 'open-core' ? 'Approva Open Core' : 'Approva';
-}
-
-export function HomePage({
-  runtimeMode,
-}: {
-  runtimeMode: AuthonRuntimeMode;
-}) {
+export function HomePage() {
   const router = useRouter();
   const [approvalLocation, setApprovalLocation] = useState('');
 
@@ -38,7 +29,7 @@ export function HomePage({
   return (
     <main className="shell">
       <section className="hero">
-        <span className="eyebrow">{getRuntimeLabel(runtimeMode)}</span>
+        <span className="eyebrow">Approva</span>
         <h1>Approve risky AI actions without losing traceability.</h1>
         <p>
           Approva is human approval infrastructure for AI actions. This UI resolves
@@ -47,11 +38,9 @@ export function HomePage({
           recording stay server-side.
         </p>
         <div className="notice info">
-          <strong>Runtime mode</strong>
+          <strong>Deployment</strong>
           <div>
-            {runtimeMode === 'open-core'
-              ? 'This deployment is running in open-core mode with single-organization self-host behavior.'
-              : 'This deployment is using an authenticated operator-console mode.'}
+            This deployment uses the default organization path for self-host operator access.
           </div>
         </div>
       </section>
@@ -132,8 +121,7 @@ export function HomePage({
           </a>
         </div>
         <div className="empty">
-          Hosted Approva Cloud is separate. This repository is optimized for self-hosting and local
-          development.
+          This repository is optimized for self-hosting and local development.
         </div>
       </section>
 

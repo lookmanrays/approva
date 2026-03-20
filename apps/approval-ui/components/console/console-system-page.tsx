@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type {
-  AuthonRuntimeMode,
   InternalApprovalRequestListResponse,
   Organization,
   OrganizationMemberRole,
@@ -19,33 +18,29 @@ const releaseLabel =
   process.env.NEXT_PUBLIC_AUTHON_RELEASE ??
   'Open Core · 2026.03';
 
-interface DashboardIdentity {
+interface OperatorIdentity {
   id?: string | null;
   name?: string | null;
   email?: string | null;
-  image?: string | null;
 }
 
 export function ConsoleSystemPage({
-  runtimeMode,
   activeRole,
   canManagePolicies,
   canManageIntegrations,
   canVerifyLedger,
-  dashboardIdentity,
+  operatorIdentity,
   activeOrganization,
   organizationMemberships,
 }: {
-  runtimeMode: AuthonRuntimeMode;
   activeRole: OrganizationMemberRole | null;
   canManagePolicies: boolean;
   canManageIntegrations: boolean;
   canVerifyLedger: boolean;
-  dashboardIdentity: DashboardIdentity | null;
+  operatorIdentity: OperatorIdentity | null;
   activeOrganization: Organization | null;
   organizationMemberships: OrganizationMembership[];
 }) {
-  const openCoreMode = runtimeMode === 'open-core';
   const [approvalsSnapshot, setApprovalsSnapshot] =
     useState<InternalApprovalRequestListResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -86,20 +81,16 @@ export function ConsoleSystemPage({
               <div className="label">Getting started</div>
               <h2>First-run checklist</h2>
             </div>
-            <span className="eyebrow">
-              {openCoreMode ? 'Open Core' : 'Authenticated'}
-            </span>
+            <span className="eyebrow">Self-host</span>
           </div>
 
           <div className="console-detail-list">
             <div className="console-detail-item">
               <span>Step 1</span>
               <strong>
-                {openCoreMode
-                  ? 'Open the approvals inbox directly and create a test approval through the demo or API.'
-                  : activeOrganization
-                    ? `You are operating inside ${activeOrganization.name}.`
-                    : 'Sign in with a user that already belongs to an organization.'}
+                {activeOrganization
+                  ? `You are operating inside ${activeOrganization.name}.`
+                  : 'Open the approvals inbox directly and create a test approval through the demo or API.'}
               </strong>
             </div>
             <div className="console-detail-item">
@@ -129,16 +120,6 @@ export function ConsoleSystemPage({
             </Link>
           </div>
 
-          {!openCoreMode && !activeOrganization ? (
-            <div className="notice warning">
-              <strong>No active organization</strong>
-              <div>
-                Dashboard auth is working, but the console needs an active organization before it
-                can load tenant-scoped data. Sign in with a user that is already attached to an
-                organization.
-              </div>
-            </div>
-          ) : null}
         </article>
 
         <article className="card stack">
@@ -161,21 +142,17 @@ export function ConsoleSystemPage({
               <strong>{approvalsSnapshot?.total ?? 0}</strong>
             </div>
             <div className="console-detail-item">
-              <span>Runtime mode</span>
-              <strong>{runtimeMode}</strong>
+              <span>Deployment</span>
+              <strong>Self-host default organization</strong>
             </div>
             <div className="console-detail-item">
               <span>Release marker</span>
               <strong>{releaseLabel}</strong>
             </div>
             <div className="console-detail-item">
-              <span>Dashboard auth</span>
+              <span>Console access</span>
               <strong>
-                {openCoreMode
-                  ? 'Optional in open-core mode'
-                  : dashboardIdentity?.email
-                    ? 'Authenticated'
-                    : 'Not authenticated'}
+                Local self-host operator context, separate from approval passkeys.
               </strong>
             </div>
             <div className="console-detail-item">
@@ -236,42 +213,25 @@ export function ConsoleSystemPage({
         <article className="card stack">
           <div>
             <div className="label">Current session</div>
-            <h2>Approver identity</h2>
+            <h2>Console access context</h2>
           </div>
 
           <div className="session-summary">
             <div className="session-line">
               <strong>Status</strong>
-              <span
-                className={`status ${
-                  openCoreMode || dashboardIdentity?.email ? 'approved' : 'expired'
-                }`}
-              >
-                {openCoreMode
-                  ? 'open-core mode'
-                  : dashboardIdentity?.email
-                    ? 'authenticated'
-                    : 'not authenticated'}
-              </span>
+              <span className="status approved">operator ready</span>
             </div>
             <div className="session-line">
-              <strong>Dashboard identity</strong>
-              <span>
-                {dashboardIdentity?.email ??
-                  (openCoreMode
-                    ? 'Not required in open-core mode'
-                    : 'No active dashboard session')}
-              </span>
+              <strong>Console identity</strong>
+              <span>{operatorIdentity?.email ?? 'Local self-host operator'}</span>
             </div>
             <div className="session-line">
               <strong>Display name</strong>
-              <span>{dashboardIdentity?.name ?? (openCoreMode ? 'Open-core operator' : 'Not available')}</span>
+              <span>{operatorIdentity?.name ?? 'Local operator'}</span>
             </div>
             <div className="session-line">
               <strong>Auth domain</strong>
-              <span>
-                {openCoreMode ? 'Default org operator console' : 'Dashboard / console only'}
-              </span>
+              <span>Default organization operator console</span>
             </div>
             <div className="session-line">
               <strong>Active org</strong>
@@ -284,9 +244,8 @@ export function ConsoleSystemPage({
           </div>
 
           <div className="empty">
-            {openCoreMode
-              ? 'Approval decisions still require the secure approval link plus a separate passkey approver session. Open-core mode only changes dashboard console access and default-org behavior.'
-              : 'Approval decisions still require the existing secure approval link plus a separate passkey approver session. Dashboard auth does not replace approval auth.'}
+            Approval decisions still require the secure approval link plus a separate passkey
+            approver session. Console access stays separate from approval authentication.
           </div>
         </article>
 
@@ -388,18 +347,13 @@ export function ConsoleSystemPage({
               <strong>Register once locally, then authenticate before secure approvals.</strong>
             </div>
             <div className="console-detail-item">
-              <span>Dashboard auth</span>
-              <strong>
-                {openCoreMode
-                  ? 'Optional in open-core mode.'
-                  : 'OAuth or magic link, separate from approval passkeys.'}
-              </strong>
+              <span>Console access</span>
+              <strong>Local self-host operator context, separate from approval passkeys.</strong>
             </div>
           </div>
 
           <div className="empty">
-            This page is operator-facing and meant for local demos, inspection, and debugging the
-            current open-core slice.
+            This page is operator-facing and meant for local demos, inspection, and debugging.
           </div>
         </article>
       </section>

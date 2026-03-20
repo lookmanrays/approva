@@ -12,9 +12,9 @@ export default function SecurityPage() {
           body: (
             <>
               <p>
-                Approva separates optional dashboard authentication from approval authentication.
-                Console routes can use dashboard sign-in, while risky action approval still
-                requires a secure approval link and passkey-authenticated human decision.
+                Approva keeps local console access separate from approval authentication. The
+                self-host operator console opens directly, while risky action approval still
+                requires a secure approval link and a passkey-authenticated human decision.
               </p>
               <p>
                 Machine access is separate again through organization-scoped API keys. These auth
@@ -49,9 +49,9 @@ export default function SecurityPage() {
                 policy, and a restrictive permissions policy.
               </p>
               <p>
-                Dashboard auth cookies stay on the app domain. Passkey approver-session cookies
-                stay on the API domain. In production, both are expected to run over HTTPS so
-                secure cookies are enabled automatically.
+                Browser session state stays on the app domain when used locally. Passkey
+                approver-session cookies stay on the API domain. In production, both should run
+                over HTTPS so secure cookies are enabled automatically.
               </p>
             </>
           ),

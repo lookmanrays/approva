@@ -15,8 +15,8 @@ concurrency:
 
 env:
   CI: true
-  AUTHON_RUNTIME_MODE: open-core
-  AUTHON_SELF_HOST_MODE: "true"
+  APPROVA_RUNTIME_MODE: open-core
+  APPROVA_SELF_HOST_MODE: "true"
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/approva?schema=public
   NEXT_PUBLIC_API_BASE_URL: http://localhost:4000
   APPROVAL_UI_BASE_URL: http://localhost:3000

@@ -34,7 +34,7 @@ Environment variables:
   Approva API base URL
   default: `http://localhost:4000`
 - `APPROVA_API_KEY`
-  machine API key in the format `authon_sk_...`
+  machine API key in the format `approva_sk_...`
 
 You can also pass:
 
@@ -59,7 +59,7 @@ Set the CLI environment:
 
 ```bash
 export APPROVA_BASE_URL=http://localhost:4000
-export APPROVA_API_KEY=authon_sk_...
+export APPROVA_API_KEY=approva_sk_...
 ```
 
 Use it directly from the repo root:

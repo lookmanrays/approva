@@ -16,6 +16,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "demo": "bash scripts/demo-flow.sh",
     "test:e2e:api:prepare": "prisma db push --skip-generate",
     "test:e2e:api": "pnpm --filter @approva/api test:e2e",
     "typecheck": "pnpm -r typecheck"

@@ -34,7 +34,7 @@ Then:
 
 ```bash
 export APPROVA_BASE_URL=http://localhost:4000
-export APPROVA_API_KEY=authon_sk_...
+export APPROVA_API_KEY=approva_sk_...
 export WEBHOOK_SIGNING_SECRET=change-me-webhook
 
 node examples/ai-agent/human-checkpoint.mjs

@@ -14,7 +14,7 @@ pnpm bootstrap -- --help
 Create or reuse the default organization, a service account, and an API key:
 
 ```bash
-AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm bootstrap -- \
+APPROVA_RUNTIME_MODE=open-core APPROVA_SELF_HOST_MODE=true pnpm bootstrap -- \
   --organization-name "Default Organization" \
   --organization-slug default \
   --create-service-account \
@@ -27,7 +27,7 @@ AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm bootstrap -- \
 Add fallback notification integrations at the same time:
 
 ```bash
-AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm bootstrap -- \
+APPROVA_RUNTIME_MODE=open-core APPROVA_SELF_HOST_MODE=true pnpm bootstrap -- \
   --organization-name "Default Organization" \
   --organization-slug default \
   --email-recipients approver@example.com \
@@ -45,4 +45,4 @@ AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm bootstrap -- \
 ## Notes
 
 - The script still understands the shared runtime-mode flags used across the codebase.
-- For this public repo, use it primarily with `AUTHON_RUNTIME_MODE=open-core`.
+- For this public repo, use it primarily with `APPROVA_RUNTIME_MODE=open-core`.

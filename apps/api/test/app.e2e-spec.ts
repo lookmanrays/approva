@@ -24,7 +24,7 @@ describe('Approva E2E', () => {
     process.env.APPROVAL_ACCESS_TOKEN_SECRET = 'test-approval-access-secret';
     process.env.WEBHOOK_SIGNING_SECRET = 'test-webhook-signing-secret';
     process.env.CAPABILITY_TTL_MINUTES = '30';
-    process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY =
+    process.env.APPROVA_INTEGRATION_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     fetchMock = jest
@@ -246,13 +246,18 @@ describe('Approva E2E', () => {
     expect(createResponse.body.request.status).toBe('pending');
 
     const approvalRequestId = createResponse.body.request.id as string;
+    const { token } = parseApprovalUrl(createResponse.body.approvalUrl);
+    const approverSession = await createApproverSession({
+      email: 'ops-reviewer@example.com',
+      displayName: 'Ops Reviewer',
+      organizationId: machine.organizationId,
+    });
     const approveResponse = await request(app.getHttpServer())
-      .post(`/v1/approval-requests/${approvalRequestId}/approve`)
-      .set('x-authon-organization-id', machine.organizationId)
+      .post(
+        `/v1/approval-requests/${approvalRequestId}/secure-approve?token=${encodeURIComponent(token)}`,
+      )
+      .set('Cookie', approverSession.cookie)
       .send({
-        approverId: 'ops-reviewer',
-        approverDisplayName: 'Ops Reviewer',
-        authMethod: 'manual',
         reason: 'Reviewed for production release.',
       });
 
@@ -587,18 +592,13 @@ async function truncateAllTables() {
       "organization_api_keys",
       "service_accounts",
       "organization_members",
-      "organization_invitations",
       "approver_sessions",
       "webauthn_credentials",
       "approver_users",
       "capabilities",
       "approval_decisions",
       "approval_requests",
-      "dashboard_authenticators",
-      "dashboard_sessions",
-      "dashboard_accounts",
-      "dashboard_verification_tokens",
-      "dashboard_users",
+      "users",
       "organizations"
     RESTART IDENTITY CASCADE
   `);
@@ -632,7 +632,7 @@ async function createMachineAuthContext() {
       },
     ],
   });
-  const rawKey = `authon_sk_${randomUUID().replace(/-/g, '').slice(0, 32)}`;
+  const rawKey = `approva_sk_${randomUUID().replace(/-/g, '').slice(0, 32)}`;
   const apiKey = await prisma.organizationApiKey.create({
     data: {
       organizationId: organization.id,
@@ -658,7 +658,33 @@ async function createMachineAuthContext() {
 async function createApproverSession(input: {
   email: string;
   displayName: string;
+  organizationId?: string;
 }) {
+  const organizationId =
+    input.organizationId ??
+    (
+      await prisma.organization.findFirstOrThrow({
+        where: {
+          slug: 'default',
+        },
+        select: {
+          id: true,
+        },
+      })
+    ).id;
+  const user = await prisma.user.create({
+    data: {
+      email: input.email,
+      name: input.displayName,
+    },
+  });
+  await prisma.organizationMember.create({
+    data: {
+      organizationId,
+      userId: user.id,
+      role: 'approver',
+    },
+  });
   const approverUser = await prisma.approverUser.create({
     data: {
       email: input.email,
@@ -689,6 +715,6 @@ async function createApproverSession(input: {
   return {
     user: approverUser,
     session,
-    cookie: [`authon_approver_session=${sessionToken}`],
+    cookie: [`approva_approver_session=${sessionToken}`],
   };
 }

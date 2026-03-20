@@ -448,9 +448,10 @@ Machine-facing CLI for Approva approval requests and capability usage.
 
 Configuration:
   APPROVA_BASE_URL  Approva API base URL (default: http://localhost:4000)
-  APPROVA_API_KEY   Organization API key in the format authon_sk_...
+  APPROVA_API_KEY   Organization API key in the format approva_sk_...
   AUTHON_BASE_URL   Backward-compatible alias for APPROVA_BASE_URL
   AUTHON_API_KEY    Backward-compatible alias for APPROVA_API_KEY
+  authon            Backward-compatible CLI alias for approva
 
 Commands:
   approva approval request --action <action> --resource-type <type> --resource-id <id> --risk-level <level> [--reason <text>] [--params-json <json>] [--requested-by-system <name>] [--requested-by-actor-id <id>] [--idempotency-key <key>] [--json]

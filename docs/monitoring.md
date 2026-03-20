@@ -61,15 +61,15 @@ Approva exposes Prometheus-compatible counters at:
 
 Current counters:
 
-- `authon_approval_requests_created_total`
-- `authon_approval_requests_approved_total`
-- `authon_approval_requests_denied_total`
-- `authon_policy_auto_approve_total`
-- `authon_policy_reject_total`
-- `authon_webhook_deliveries_total`
-- `authon_webhook_failures_total`
-- `authon_email_deliveries_total`
-- `authon_email_failures_total`
+- `approva_approval_requests_created_total`
+- `approva_approval_requests_approved_total`
+- `approva_approval_requests_denied_total`
+- `approva_policy_auto_approve_total`
+- `approva_policy_reject_total`
+- `approva_webhook_deliveries_total`
+- `approva_webhook_failures_total`
+- `approva_email_deliveries_total`
+- `approva_email_failures_total`
 
 These counters are process-local and intended for scrape-based aggregation in hosted deployments.
 
@@ -97,7 +97,7 @@ scrape_configs:
 Set:
 
 ```bash
-AUTHON_SENTRY_DSN=https://...
+APPROVA_SENTRY_DSN=https://...
 ```
 
 When configured, Approva initializes Sentry on API boot and reports server-side exceptions with request-scoped tags when available:

@@ -55,7 +55,7 @@ echo "${LIVE_OUTPUT}" | node -e '
     console.error("Liveness failed:", payload);
     process.exit(1);
   }
-  console.log(`Liveness OK (${payload.runtimeMode})`);
+  console.log("Liveness OK");
 '
 echo "${READY_OUTPUT}" | node -e '
   const fs = require("fs");
@@ -64,15 +64,15 @@ echo "${READY_OUTPUT}" | node -e '
     console.error("Readiness failed:", payload);
     process.exit(1);
   }
-  console.log(`Readiness OK (${payload.runtimeMode})`);
+  console.log("Readiness OK");
 '
 
-section "Open-core console check"
-echo "Open ${UI_BASE_URL}/console/approvals and confirm the console loads without dashboard auth."
+section "Console check"
+echo "Open ${UI_BASE_URL}/console/approvals and confirm the console loads directly."
 
 section "Metrics endpoint"
 METRICS_OUTPUT="$(curl -fsS "${API_BASE_URL}/v1/internal/metrics")"
-if [[ "${METRICS_OUTPUT}" == *"authon_approval_requests_created_total"* ]]; then
+if [[ "${METRICS_OUTPUT}" == *"approva_approval_requests_created_total"* ]]; then
   echo "Metrics endpoint responded with Prometheus counters."
 else
   echo "Metrics endpoint did not include expected counters." >&2

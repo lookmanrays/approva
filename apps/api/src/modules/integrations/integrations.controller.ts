@@ -22,9 +22,9 @@ export class IntegrationsController {
   @ApiOperation({ summary: 'List integrations for the active organization' })
   @ApiOkResponse({ description: 'Integrations retrieved.' })
   async list(
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<IntegrationListResponse> {
     await this.organizationRbacService.requirePermission(
       'console:view',
@@ -43,9 +43,9 @@ export class IntegrationsController {
   @ApiOkResponse({ description: 'Integration created.' })
   async create(
     @Body() input: CreateIntegrationDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<IntegrationRecord> {
     await this.organizationRbacService.requirePermission(
       'integrations:manage',
@@ -65,9 +65,9 @@ export class IntegrationsController {
   async update(
     @Param('id') id: string,
     @Body() input: UpdateIntegrationDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<IntegrationRecord> {
     await this.organizationRbacService.requirePermission(
       'integrations:manage',
@@ -86,9 +86,9 @@ export class IntegrationsController {
   @ApiOkResponse({ description: 'Integration deleted.' })
   async remove(
     @Param('id') id: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<DeleteIntegrationResponse> {
     await this.organizationRbacService.requirePermission(
       'integrations:manage',

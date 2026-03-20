@@ -17,8 +17,8 @@ export default function PrivacyPage() {
                 usage logs required to run the service.
               </p>
               <p>
-                Self-hosted deployments may also process email addresses for optional dashboard
-                sign-in and notification delivery.
+                Self-hosted deployments may also process email addresses for approver identity,
+                operator contact metadata, and notification delivery.
               </p>
             </>
           ),

@@ -39,7 +39,7 @@ export class AuthController {
   startRegistration(
     @Body() input: PasskeyRegistrationStartDto,
   ): Promise<PasskeyRegistrationStartResponse> {
-    return this.authService.startPasskeyRegistration(input.email);
+    return this.authService.startPasskeyRegistration(input);
   }
 
   @Post('passkeys/register/finish')
@@ -59,7 +59,7 @@ export class AuthController {
   startAuthentication(
     @Body() input: PasskeyAuthenticationStartDto,
   ): Promise<PasskeyAuthenticationStartResponse> {
-    return this.authService.startPasskeyAuthentication(input.email);
+    return this.authService.startPasskeyAuthentication(input);
   }
 
   @Post('passkeys/authenticate/finish')

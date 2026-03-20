@@ -21,9 +21,9 @@ export class InternalApprovalRequestsController {
   @ApiOkResponse({ description: 'Internal approval request inbox.' })
   async list(
     @Query() query: InternalApprovalRequestsQueryDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<InternalApprovalRequestListResponse> {
     await this.organizationRbacService.requirePermission(
       'approvals:view',
@@ -42,9 +42,9 @@ export class InternalApprovalRequestsController {
   @ApiOkResponse({ description: 'Internal approval request detail.' })
   async getById(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<InternalApprovalRequestDetailResponse> {
     await this.organizationRbacService.requirePermission(
       'approvals:view',

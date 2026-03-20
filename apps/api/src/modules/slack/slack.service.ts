@@ -185,10 +185,19 @@ export class SlackService {
     input: SlackApprovalNotificationInput,
   ) {
     const channelId = this.getChannelId() ?? 'not-configured';
+    const redactedApprovalUrl = this.redactApprovalUrl(input.approvalUrl);
 
     return (
       `[Approva Slack][console fallback][${type}] channel=${channelId}\n` +
-      this.buildPlainText(type, input)
+      `${this.getStatusCopy(type).title}\n\n` +
+      `Action: ${input.action}\n` +
+      `Resource: ${input.resourceType}/${input.resourceId}\n` +
+      `Risk level: ${input.riskLevel}\n` +
+      `Requested by: ${input.requestedBy}\n` +
+      `Reason: ${input.reason}\n` +
+      (input.approver ? `Approver: ${input.approver}\n` : '') +
+      `Approval page: ${redactedApprovalUrl}\n` +
+      `Console detail: ${input.consoleUrl}\n`
     );
   }
 
@@ -218,10 +227,21 @@ export class SlackService {
   }
 
   private getBotToken() {
-    return process.env.AUTHON_SLACK_BOT_TOKEN ?? undefined;
+    return process.env.APPROVA_SLACK_BOT_TOKEN ?? process.env.AUTHON_SLACK_BOT_TOKEN ?? undefined;
   }
 
   private getChannelId() {
-    return process.env.AUTHON_SLACK_CHANNEL_ID ?? undefined;
+    return process.env.APPROVA_SLACK_CHANNEL_ID ?? process.env.AUTHON_SLACK_CHANNEL_ID ?? undefined;
+  }
+
+  private redactApprovalUrl(value: string) {
+    try {
+      const url = new URL(value);
+      url.search = '';
+      url.hash = '';
+      return url.toString();
+    } catch {
+      return 'redacted';
+    }
   }
 }

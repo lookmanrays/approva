@@ -5,8 +5,7 @@ export function buildAllowedApiOrigins(env: NodeJS.ProcessEnv = process.env) {
 
   for (const candidate of [
     env.APPROVAL_UI_BASE_URL,
-    env.AUTH_URL,
-    ...parseCsv(env.AUTHON_API_ALLOWED_ORIGINS),
+    ...parseCsv(env.APPROVA_API_ALLOWED_ORIGINS ?? env.AUTHON_API_ALLOWED_ORIGINS),
   ]) {
     const origin = normalizeOrigin(candidate);
 

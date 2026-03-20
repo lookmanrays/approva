@@ -33,7 +33,7 @@ values for self-host and local development.
 Today:
 
 - the preferred path is `/console/integrations`, which stores one Slack integration per organization
-- the API can still fall back to `AUTHON_SLACK_BOT_TOKEN` and `AUTHON_SLACK_CHANNEL_ID`
+- the API can still fall back to `APPROVA_SLACK_BOT_TOKEN` and `APPROVA_SLACK_CHANNEL_ID`
 - the fallback path is practical for self-host, demos, and local development
 
 This is practical for demos and early self-host usage.
@@ -42,14 +42,14 @@ This is practical for demos and early self-host usage.
 
 In [apps/api/.env.example](../apps/api/.env.example):
 
-- `AUTHON_INTEGRATION_ENCRYPTION_KEY`
-- `AUTHON_SLACK_BOT_TOKEN`
-- `AUTHON_SLACK_CHANNEL_ID`
+- `APPROVA_INTEGRATION_ENCRYPTION_KEY`
+- `APPROVA_SLACK_BOT_TOKEN`
+- `APPROVA_SLACK_CHANNEL_ID`
 
 Notes:
 
-- `AUTHON_INTEGRATION_ENCRYPTION_KEY` is required when Slack bot tokens are stored through organization integrations
-- `AUTHON_SLACK_BOT_TOKEN` and `AUTHON_SLACK_CHANNEL_ID` are fallback values only
+- `APPROVA_INTEGRATION_ENCRYPTION_KEY` is required when Slack bot tokens are stored through organization integrations
+- `APPROVA_SLACK_BOT_TOKEN` and `APPROVA_SLACK_CHANNEL_ID` are fallback values only
 - if no organization integration and no fallback env values are configured, Approva logs the Slack message payload to the API console instead of sending it
 
 ## Slack App Setup
@@ -61,9 +61,9 @@ Recommended setup path:
 3. Add the bot token scope:
    - `chat:write`
 4. Install the app to the workspace
-5. Copy the bot token into `AUTHON_SLACK_BOT_TOKEN`
+5. Copy the bot token into `APPROVA_SLACK_BOT_TOKEN`
 6. Invite the bot to the target channel
-7. Copy the channel id into `AUTHON_SLACK_CHANNEL_ID`
+7. Copy the channel id into `APPROVA_SLACK_CHANNEL_ID`
 
 Notes:
 
@@ -101,9 +101,9 @@ Outcome messages include:
 via env fallback:
 
 ```bash
-AUTHON_INTEGRATION_ENCRYPTION_KEY=<32-byte-base64-or-64-char-hex>
-AUTHON_SLACK_BOT_TOKEN=xoxb-...
-AUTHON_SLACK_CHANNEL_ID=C0123456789
+APPROVA_INTEGRATION_ENCRYPTION_KEY=<32-byte-base64-or-64-char-hex>
+APPROVA_SLACK_BOT_TOKEN=xoxb-...
+APPROVA_SLACK_CHANNEL_ID=C0123456789
 ```
 
 or through the console:

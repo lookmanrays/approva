@@ -1,8 +1,8 @@
 import { ConsoleApiKeysPage } from '@/components/console/console-api-keys-page';
-import { getDashboardPermissionContext } from '@/lib/dashboard-auth/permissions';
+import { getConsolePermissionContext } from '@/lib/console-permissions';
 
 export default async function ConsoleApiKeysRoute() {
-  const context = await getDashboardPermissionContext();
+  const context = await getConsolePermissionContext();
 
   return (
     <ConsoleApiKeysPage

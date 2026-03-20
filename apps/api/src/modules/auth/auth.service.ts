@@ -1,10 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import type {
   ApproverSessionState,
   PasskeyAuthenticationFinishResponse,
@@ -30,8 +32,10 @@ import {
   generateOpaqueToken,
   hashTokenValue,
 } from '../../common/utils/hash.util';
+import { OrganizationRbacService } from '../organizations/organization-rbac.service';
 
-const APPROVER_SESSION_COOKIE = 'authon_approver_session';
+const APPROVER_SESSION_COOKIE = 'approva_approver_session';
+const LEGACY_APPROVER_SESSION_COOKIE = 'authon_approver_session';
 
 export interface AuthenticatedApproverSession {
   sessionId: string;
@@ -51,12 +55,24 @@ export interface AuthenticatedApproverSession {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly organizationRbacService: OrganizationRbacService,
+  ) {}
 
   async startPasskeyRegistration(
-    email: string,
+    input: {
+      requestId: string;
+      token: string;
+      email: string;
+    },
   ): Promise<PasskeyRegistrationStartResponse> {
-    const approverUser = await this.getActiveApproverUserByEmail(email, {
+    await this.assertApprovalScopedPasskeyAccess(
+      input.requestId,
+      input.token,
+      input.email,
+    );
+    const approverUser = await this.getActiveApproverUserByEmail(input.email, {
       credentials: true,
     });
 
@@ -95,9 +111,16 @@ export class AuthService {
   }
 
   async finishPasskeyRegistration(input: {
+    requestId: string;
+    token: string;
     email: string;
     response: Record<string, unknown>;
   }): Promise<PasskeyRegistrationFinishResponse> {
+    await this.assertApprovalScopedPasskeyAccess(
+      input.requestId,
+      input.token,
+      input.email,
+    );
     const approverUser = await this.getActiveApproverUserByEmail(input.email);
 
     if (
@@ -167,9 +190,18 @@ export class AuthService {
   }
 
   async startPasskeyAuthentication(
-    email: string,
+    input: {
+      requestId: string;
+      token: string;
+      email: string;
+    },
   ): Promise<PasskeyAuthenticationStartResponse> {
-    const approverUser = await this.getActiveApproverUserByEmail(email, {
+    await this.assertApprovalScopedPasskeyAccess(
+      input.requestId,
+      input.token,
+      input.email,
+    );
+    const approverUser = await this.getActiveApproverUserByEmail(input.email, {
       credentials: true,
     });
 
@@ -204,11 +236,18 @@ export class AuthService {
 
   async finishPasskeyAuthentication(
     input: {
+      requestId: string;
+      token: string;
       email: string;
       response: Record<string, unknown>;
     },
     response: Response,
   ): Promise<PasskeyAuthenticationFinishResponse> {
+    await this.assertApprovalScopedPasskeyAccess(
+      input.requestId,
+      input.token,
+      input.email,
+    );
     const approverUser = await this.getActiveApproverUserByEmail(input.email, {
       credentials: true,
     });
@@ -348,7 +387,7 @@ export class AuthService {
     request: Request,
     response: Response,
   ): Promise<ApproverSessionState> {
-    const sessionToken = request.cookies?.[APPROVER_SESSION_COOKIE] as string | undefined;
+    const sessionToken = this.readSessionCookie(request);
 
     if (sessionToken) {
       await this.prisma.approverSession.deleteMany({
@@ -367,12 +406,13 @@ export class AuthService {
 
   clearSessionCookie(response: Response) {
     response.clearCookie(APPROVER_SESSION_COOKIE, this.getSessionCookieOptions());
+    response.clearCookie(LEGACY_APPROVER_SESSION_COOKIE, this.getSessionCookieOptions());
   }
 
   private async lookupAuthenticatedSession(
     request: Request,
   ): Promise<AuthenticatedApproverSession | null> {
-    const sessionToken = request.cookies?.[APPROVER_SESSION_COOKIE] as string | undefined;
+    const sessionToken = this.readSessionCookie(request);
 
     if (!sessionToken) {
       return null;
@@ -435,6 +475,87 @@ export class AuthService {
     return approverUser;
   }
 
+  private async assertApprovalScopedPasskeyAccess(
+    requestId: string,
+    token: string,
+    email: string,
+  ) {
+    const approvalRequest = await this.prisma.approvalRequest.findUnique({
+      where: {
+        id: requestId,
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        status: true,
+        expiresAt: true,
+        approvalAccessTokenHash: true,
+        policyResult: true,
+      },
+    });
+
+    if (!approvalRequest) {
+      throw new NotFoundException('Approval request not found.');
+    }
+
+    this.assertValidApprovalAccessToken(approvalRequest.approvalAccessTokenHash, token);
+
+    if (
+      approvalRequest.status !== 'pending' ||
+      approvalRequest.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new ConflictException(
+        'This approval request can no longer accept passkey registration or authentication.',
+      );
+    }
+
+    const authorization = await this.organizationRbacService.getApproverAuthorization(
+      approvalRequest.organizationId,
+      email,
+      this.extractAllowedApproverRoles(approvalRequest.policyResult),
+    );
+
+    if (!authorization.authorized) {
+      throw new ForbiddenException(authorization.message);
+    }
+  }
+
+  private assertValidApprovalAccessToken(expectedTokenHash: string, token: string) {
+    const providedHash = Buffer.from(hashTokenValue(token), 'utf8');
+    const expectedHash = Buffer.from(expectedTokenHash, 'utf8');
+
+    if (
+      providedHash.length !== expectedHash.length ||
+      !timingSafeEqual(providedHash, expectedHash)
+    ) {
+      throw new ForbiddenException('Invalid approval access token.');
+    }
+  }
+
+  private extractAllowedApproverRoles(policyResult: unknown) {
+    if (
+      !policyResult ||
+      typeof policyResult !== 'object' ||
+      Array.isArray(policyResult)
+    ) {
+      return [] as Array<'owner' | 'admin' | 'member' | 'approver'>;
+    }
+
+    const approverRoles = (policyResult as Record<string, unknown>).approverRoles;
+
+    if (!Array.isArray(approverRoles)) {
+      return [] as Array<'owner' | 'admin' | 'member' | 'approver'>;
+    }
+
+    return approverRoles.filter(
+      (value): value is 'owner' | 'admin' | 'member' | 'approver' =>
+        value === 'owner' ||
+        value === 'admin' ||
+        value === 'member' ||
+        value === 'approver',
+    );
+  }
+
   private extractCredentialId(response: Record<string, unknown>) {
     const credentialId = response.id;
 
@@ -481,6 +602,11 @@ export class AuthService {
       ...this.getSessionCookieOptions(),
       expires: expiresAt,
     });
+  }
+
+  private readSessionCookie(request: Request) {
+    return (request.cookies?.[APPROVER_SESSION_COOKIE] ??
+      request.cookies?.[LEGACY_APPROVER_SESSION_COOKIE]) as string | undefined;
   }
 
   private getSessionCookieOptions() {

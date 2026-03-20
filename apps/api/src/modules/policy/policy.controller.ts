@@ -18,9 +18,9 @@ export class PolicyController {
   @ApiOperation({ summary: 'List policies for the active organization' })
   @ApiOkResponse({ description: 'Policies retrieved.' })
   async list(
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<PolicyListResponse> {
     await this.organizationRbacService.requirePermission(
       'console:view',
@@ -39,9 +39,9 @@ export class PolicyController {
   @ApiOkResponse({ description: 'Policy created.' })
   async create(
     @Body() input: CreatePolicyDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<PolicyRule> {
     await this.organizationRbacService.requirePermission(
       'policies:manage',
@@ -61,9 +61,9 @@ export class PolicyController {
   async update(
     @Param('id') id: string,
     @Body() input: UpdatePolicyDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<PolicyRule> {
     await this.organizationRbacService.requirePermission(
       'policies:manage',
@@ -82,9 +82,9 @@ export class PolicyController {
   @ApiOkResponse({ description: 'Policy deleted.' })
   async remove(
     @Param('id') id: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<DeletePolicyResponse> {
     await this.organizationRbacService.requirePermission(
       'policies:manage',

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
-import { validateAuthonUiEnvironment } from '@approva/config';
+import { validateApprovaUiEnvironment } from '@approva/config';
 import { buildUiSecurityHeaders } from './lib/security';
 
 const { loadEnvConfig } = require('@next/env') as {
@@ -8,7 +8,7 @@ const { loadEnvConfig } = require('@next/env') as {
 };
 
 loadEnvConfig(resolve(process.cwd(), '../..'));
-validateAuthonUiEnvironment(process.env);
+validateApprovaUiEnvironment(process.env);
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@approva/config', '@approva/shared', '@approva/sdk', '@approva/email'],

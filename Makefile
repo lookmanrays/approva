@@ -1,18 +1,24 @@
 SHELL := /bin/sh
 
-.PHONY: bootstrap dev start stop smoke
+.PHONY: bootstrap dev demo start stop smoke
 
 bootstrap:
 	pnpm bootstrap
 dev:
-	docker compose up -d postgres
-	pnpm install
-	AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm prisma generate
-	AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm db:push
-	AUTHON_RUNTIME_MODE=open-core AUTHON_SELF_HOST_MODE=true pnpm dev
+	sh ./scripts/dev-open-core.sh
+
+demo:
+	bash ./scripts/demo-flow.sh
 
 start:
 	docker compose up --build -d
+	@echo ""
+	@echo "Approva is starting in Docker."
+	@echo "Next steps:"
+	@echo "  - Console: http://localhost:3000/console/approvals"
+	@echo "  - API docs: http://localhost:4000/docs"
+	@echo "  - Follow logs: docker compose logs -f approva-api approva-console"
+	@echo "  - The seeded approval URL will appear in approva-api logs on first boot"
 
 stop:
 	docker compose down

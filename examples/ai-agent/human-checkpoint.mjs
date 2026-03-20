@@ -15,7 +15,11 @@ const WEBHOOK_SIGNING_SECRET =
 const PORT = Number(process.env.AI_AGENT_PORT ?? 4300);
 const AGENT_PUBLIC_BASE_URL =
   process.env.AI_AGENT_PUBLIC_BASE_URL ?? `http://localhost:${PORT}`;
-const WEBHOOK_TIMEOUT_MS = Number(process.env.AUTHON_WEBHOOK_TIMEOUT_MS ?? 15 * 60 * 1000);
+const WEBHOOK_TIMEOUT_MS = Number(
+  process.env.APPROVA_WEBHOOK_TIMEOUT_MS ??
+    process.env.AUTHON_WEBHOOK_TIMEOUT_MS ??
+    15 * 60 * 1000,
+);
 
 if (!APPROVA_API_KEY) {
   console.error(

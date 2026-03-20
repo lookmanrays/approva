@@ -13,9 +13,10 @@ export class RequestContextMiddleware implements NestMiddleware {
 
   use(request: Request, response: Response, next: NextFunction) {
     const startedAt = Date.now();
+    this.normalizeCompatibilityHeaders(request);
     const requestId = this.readHeader(request, 'x-request-id') ?? randomUUID();
-    const organizationId = this.readHeader(request, 'x-authon-organization-id');
-    const userId = this.readHeader(request, 'x-authon-dashboard-user-id');
+    const organizationId = this.readHeader(request, 'x-approva-organization-id');
+    const userId = this.readHeader(request, 'x-approva-user-id');
     const initialPath = this.normalizePath(request.originalUrl ?? request.url);
 
     response.setHeader('x-request-id', requestId);
@@ -56,6 +57,24 @@ export class RequestContextMiddleware implements NestMiddleware {
     }
 
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  }
+
+  private normalizeCompatibilityHeaders(request: Request) {
+    this.copyHeader(request, 'x-approva-organization-id', 'x-approva-organization-id');
+    this.copyHeader(request, 'x-approva-organization-slug', 'x-approva-organization-slug');
+    this.copyHeader(request, 'x-approva-user-id', 'x-approva-user-id');
+    this.copyHeader(request, 'x-approva-organization-id', 'x-approva-organization-id');
+    this.copyHeader(request, 'x-approva-organization-slug', 'x-approva-organization-slug');
+    this.copyHeader(request, 'x-approva-user-id', 'x-approva-user-id');
+  }
+
+  private copyHeader(request: Request, target: string, source: string) {
+    const sourceValue = this.readHeader(request, source);
+    const targetValue = this.readHeader(request, target);
+
+    if (!targetValue && sourceValue) {
+      request.headers[target] = sourceValue;
+    }
   }
 
   private normalizePath(url: string) {

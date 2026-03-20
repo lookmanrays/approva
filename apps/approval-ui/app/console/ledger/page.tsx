@@ -1,4 +1,4 @@
-import { getDashboardPermissionContext } from '@/lib/dashboard-auth/permissions';
+import { getConsolePermissionContext } from '@/lib/console-permissions';
 import { ConsoleLedgerPage } from '@/components/console/console-ledger-page';
 
 interface ConsoleLedgerRouteProps {
@@ -8,7 +8,7 @@ interface ConsoleLedgerRouteProps {
 export default async function ConsoleLedgerRoute({
   searchParams,
 }: ConsoleLedgerRouteProps) {
-  const context = await getDashboardPermissionContext();
+  const context = await getConsolePermissionContext();
   const resolvedSearchParams = await searchParams;
   const fromSeq = resolvedSearchParams?.fromSeq;
   const toSeq = resolvedSearchParams?.toSeq;

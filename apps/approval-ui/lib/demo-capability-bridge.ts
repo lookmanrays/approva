@@ -1,6 +1,7 @@
 'use client';
 
-const DEMO_CAPABILITY_BRIDGE_PREFIX = 'authon_demo_capability_token_';
+const DEMO_CAPABILITY_BRIDGE_PREFIX = 'approva_demo_capability_token_';
+const LEGACY_DEMO_CAPABILITY_BRIDGE_PREFIX = 'authon_demo_capability_token_';
 const DEMO_CAPABILITY_BRIDGE_TTL_MS = 5 * 60 * 1000;
 
 type DemoCapabilityBridgeRecord = {
@@ -18,6 +19,10 @@ export type DemoCapabilityBridgeState = {
 
 function getStorageKey(approvalRequestId: string) {
   return `${DEMO_CAPABILITY_BRIDGE_PREFIX}${approvalRequestId}`;
+}
+
+function getLegacyStorageKey(approvalRequestId: string) {
+  return `${LEGACY_DEMO_CAPABILITY_BRIDGE_PREFIX}${approvalRequestId}`;
 }
 
 function canUseStorage() {
@@ -62,7 +67,11 @@ export function cleanupExpiredDemoCapabilityTokens(now = Date.now()) {
   for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
     const key = window.localStorage.key(index);
 
-    if (!key || !key.startsWith(DEMO_CAPABILITY_BRIDGE_PREFIX)) {
+    if (
+      !key ||
+      (!key.startsWith(DEMO_CAPABILITY_BRIDGE_PREFIX) &&
+        !key.startsWith(LEGACY_DEMO_CAPABILITY_BRIDGE_PREFIX))
+    ) {
       continue;
     }
 
@@ -113,7 +122,9 @@ export function readDemoCapabilityToken(
   }
 
   const key = getStorageKey(approvalRequestId);
-  const record = parseRecord(window.localStorage.getItem(key));
+  const record =
+    parseRecord(window.localStorage.getItem(key)) ??
+    parseRecord(window.localStorage.getItem(getLegacyStorageKey(approvalRequestId)));
 
   if (!record) {
     return {

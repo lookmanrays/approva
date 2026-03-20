@@ -43,7 +43,7 @@ When the API actually sends Slack notifications or signed webhooks:
 
 Set this env var for the API:
 
-- `AUTHON_INTEGRATION_ENCRYPTION_KEY`
+- `APPROVA_INTEGRATION_ENCRYPTION_KEY`
 
 Supported formats:
 
@@ -53,7 +53,7 @@ Supported formats:
 Example:
 
 ```bash
-AUTHON_INTEGRATION_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+APPROVA_INTEGRATION_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
 ## Rotation Caveat

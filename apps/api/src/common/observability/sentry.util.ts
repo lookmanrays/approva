@@ -4,7 +4,9 @@ import { getRequestContext } from './request-context';
 let sentryInitialized = false;
 
 export function initializeSentry() {
-  const dsn = process.env.AUTHON_SENTRY_DSN?.trim();
+  const dsn =
+    process.env.APPROVA_SENTRY_DSN?.trim() ??
+    process.env.AUTHON_SENTRY_DSN?.trim();
 
   if (!dsn || sentryInitialized) {
     return;

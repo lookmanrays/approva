@@ -75,20 +75,20 @@ For easier debugging, Approva also returns:
 
 Required core switches:
 
-- `AUTHON_RATE_LIMIT_ENABLED`
-- `AUTHON_RATE_LIMIT_GLOBAL`
-- `AUTHON_RATE_LIMIT_AUTHENTICATED`
+- `APPROVA_RATE_LIMIT_ENABLED`
+- `APPROVA_RATE_LIMIT_GLOBAL`
+- `APPROVA_RATE_LIMIT_AUTHENTICATED`
 
 Optional overrides:
 
-- `AUTHON_RATE_LIMIT_APPROVAL`
-- `AUTHON_RATE_LIMIT_ORG_APPROVAL_CREATION`
-- `AUTHON_RATE_LIMIT_ORG_CAPABILITY_VERIFICATION`
-- `AUTHON_RATE_LIMIT_ORG_WEBHOOK_RETRIES`
-- `AUTHON_WEBHOOK_REPLAY_WINDOW_SECONDS`
+- `APPROVA_RATE_LIMIT_APPROVAL`
+- `APPROVA_RATE_LIMIT_ORG_APPROVAL_CREATION`
+- `APPROVA_RATE_LIMIT_ORG_CAPABILITY_VERIFICATION`
+- `APPROVA_RATE_LIMIT_ORG_WEBHOOK_RETRIES`
+- `APPROVA_WEBHOOK_REPLAY_WINDOW_SECONDS`
 
 ## Local Notes
 
-- local test environments can set `AUTHON_RATE_LIMIT_ENABLED=false`
+- local test environments can set `APPROVA_RATE_LIMIT_ENABLED=false`
 - rate limiting is API-only
-- approval auth, dashboard auth, and policy routing remain unchanged
+- approval auth, console access, and policy routing remain unchanged

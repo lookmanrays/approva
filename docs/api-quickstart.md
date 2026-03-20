@@ -4,7 +4,7 @@
 
 ```bash
 curl -X POST "http://localhost:4000/v1/approval-requests" \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: deploy-req-001" \
   -d '{
@@ -113,7 +113,7 @@ If the approval request was created with `callback.deliverCapabilityMode = excha
 
 ```bash
 curl -X POST "http://localhost:4000/v1/capabilities/exchange" \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "exchangeToken": "cex_..."

@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { getAuthonIntegrationEncryptionKeyMaterial } from '@approva/config';
+import { getApprovaIntegrationEncryptionKeyMaterial } from '@approva/config';
 
 const ENCRYPTED_PREFIX = 'enc:v1';
 
@@ -54,22 +54,26 @@ export function isEncryptedApplicationValue(value: string): boolean {
 }
 
 function getApplicationEncryptionKey() {
-  const key = getAuthonIntegrationEncryptionKeyMaterial(
-    process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY,
+  const key = getApprovaIntegrationEncryptionKeyMaterial(
+    process.env.APPROVA_INTEGRATION_ENCRYPTION_KEY ??
+      process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY,
   );
 
   if (key) {
     return key;
   }
 
-  if (!process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY?.trim()) {
+  if (
+    !process.env.APPROVA_INTEGRATION_ENCRYPTION_KEY?.trim() &&
+    !process.env.AUTHON_INTEGRATION_ENCRYPTION_KEY?.trim()
+  ) {
     throw new Error(
-      'AUTHON_INTEGRATION_ENCRYPTION_KEY must be configured to encrypt stored application secrets.',
+      'APPROVA_INTEGRATION_ENCRYPTION_KEY must be configured to encrypt stored application secrets.',
     );
   }
 
   throw new Error(
-    'AUTHON_INTEGRATION_ENCRYPTION_KEY must be a 32-byte base64 or 64-character hex key.',
+    'APPROVA_INTEGRATION_ENCRYPTION_KEY must be a 32-byte base64 or 64-character hex key.',
   );
 }
 

@@ -19,35 +19,55 @@ export class RateLimitService {
   constructor(private readonly prisma: PrismaService) {}
 
   isEnabled() {
-    return this.readBooleanEnv('AUTHON_RATE_LIMIT_ENABLED', true);
+    return this.readBooleanEnv('APPROVA_RATE_LIMIT_ENABLED', 'AUTHON_RATE_LIMIT_ENABLED', true);
   }
 
   getGlobalPublicLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_GLOBAL', 60);
+    return this.readNumberEnv('APPROVA_RATE_LIMIT_GLOBAL', 'AUTHON_RATE_LIMIT_GLOBAL', 60);
   }
 
   getAuthenticatedLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_AUTHENTICATED', 300);
+    return this.readNumberEnv(
+      'APPROVA_RATE_LIMIT_AUTHENTICATED',
+      'AUTHON_RATE_LIMIT_AUTHENTICATED',
+      300,
+    );
   }
 
   getApprovalIpLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_APPROVAL', 20);
+    return this.readNumberEnv('APPROVA_RATE_LIMIT_APPROVAL', 'AUTHON_RATE_LIMIT_APPROVAL', 20);
   }
 
   getOrganizationApprovalCreateLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_ORG_APPROVAL_CREATION', 120);
+    return this.readNumberEnv(
+      'APPROVA_RATE_LIMIT_ORG_APPROVAL_CREATION',
+      'AUTHON_RATE_LIMIT_ORG_APPROVAL_CREATION',
+      120,
+    );
   }
 
   getOrganizationCapabilityVerificationLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_ORG_CAPABILITY_VERIFICATION', 600);
+    return this.readNumberEnv(
+      'APPROVA_RATE_LIMIT_ORG_CAPABILITY_VERIFICATION',
+      'AUTHON_RATE_LIMIT_ORG_CAPABILITY_VERIFICATION',
+      600,
+    );
   }
 
   getOrganizationWebhookRetryLimit() {
-    return this.readNumberEnv('AUTHON_RATE_LIMIT_ORG_WEBHOOK_RETRIES', 120);
+    return this.readNumberEnv(
+      'APPROVA_RATE_LIMIT_ORG_WEBHOOK_RETRIES',
+      'AUTHON_RATE_LIMIT_ORG_WEBHOOK_RETRIES',
+      120,
+    );
   }
 
   getWebhookReplayWindowMs() {
-    return this.readNumberEnv('AUTHON_WEBHOOK_REPLAY_WINDOW_SECONDS', 300) * 1000;
+    return this.readNumberEnv(
+      'APPROVA_WEBHOOK_REPLAY_WINDOW_SECONDS',
+      'AUTHON_WEBHOOK_REPLAY_WINDOW_SECONDS',
+      300,
+    ) * 1000;
   }
 
   async consume(input: {
@@ -251,8 +271,8 @@ export class RateLimitService {
     return Math.max(Math.ceil((resetAt.getTime() - Date.now()) / 1000), 1);
   }
 
-  private readNumberEnv(name: string, fallback: number) {
-    const raw = process.env[name]?.trim();
+  private readNumberEnv(name: string, legacyName: string, fallback: number) {
+    const raw = (process.env[name] ?? process.env[legacyName])?.trim();
 
     if (!raw) {
       return fallback;
@@ -262,8 +282,8 @@ export class RateLimitService {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }
 
-  private readBooleanEnv(name: string, fallback: boolean) {
-    const raw = process.env[name]?.trim().toLowerCase();
+  private readBooleanEnv(name: string, legacyName: string, fallback: boolean) {
+    const raw = (process.env[name] ?? process.env[legacyName])?.trim().toLowerCase();
 
     if (!raw) {
       return fallback;

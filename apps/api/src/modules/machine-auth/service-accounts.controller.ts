@@ -28,9 +28,9 @@ export class ServiceAccountsController {
   @ApiOperation({ summary: 'List organization service accounts' })
   @ApiOkResponse({ description: 'Service accounts listed.' })
   async list(
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<ServiceAccountListResponse> {
     await this.organizationRbacService.requirePermission(
       'service_accounts:manage',
@@ -49,9 +49,9 @@ export class ServiceAccountsController {
   @ApiOkResponse({ description: 'Service account created.' })
   async create(
     @Body() input: CreateServiceAccountDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<ServiceAccountRecord> {
     await this.organizationRbacService.requirePermission(
       'service_accounts:manage',
@@ -65,7 +65,6 @@ export class ServiceAccountsController {
         organizationId,
         organizationSlug,
       },
-      dashboardUserId,
     );
   }
 
@@ -74,9 +73,9 @@ export class ServiceAccountsController {
   @ApiOkResponse({ description: 'Service account revoked.' })
   async revoke(
     @Param('id') id: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<RevokeServiceAccountResponse> {
     await this.organizationRbacService.requirePermission(
       'service_accounts:manage',

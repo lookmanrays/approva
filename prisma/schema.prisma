@@ -71,35 +71,27 @@ enum MachinePrincipalType {
 }
 
 model Organization {
-  id                String              @id @default(cuid())
-  name              String
-  slug              String              @unique
-  createdAt         DateTime            @default(now()) @map("created_at")
-  onboardingCompletedAt DateTime?       @map("onboarding_completed_at")
-  ownerUserId       String?             @map("owner_user_id")
-  ownerUser         User?               @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  activeUsers       User[]              @relation("ActiveOrganization")
-  members           OrganizationMember[]
-  invitations       OrganizationInvitation[]
-  approvalRequests  ApprovalRequest[]
-  approvalDecisions ApprovalDecision[]
-  capabilities      Capability[]
+  id                       String                    @id @default(cuid())
+  name                     String
+  slug                     String                    @unique
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  members                  OrganizationMember[]
+  approvalRequests         ApprovalRequest[]
+  approvalDecisions        ApprovalDecision[]
+  capabilities             Capability[]
   capabilityExchangeTokens CapabilityExchangeToken[]
-  auditEvents       AuditEvent[]
-  immutableEvents   ImmutableEvent[]
-  ledgerEntries     LedgerEntry[]
-  webhookDeliveries WebhookDelivery[]
-  policies          Policy[]
-  webhookEndpoints  WebhookEndpoint[]
-  integrations      Integration[]
-  serviceAccounts   ServiceAccount[]
-  apiKeys           OrganizationApiKey[]
-  subscription      OrganizationSubscription?
-  stripeWebhookEventReceipts StripeWebhookEventReceipt[]
-  webhookReplayWindows WebhookReplayWindow[]
+  auditEvents              AuditEvent[]
+  immutableEvents          ImmutableEvent[]
+  ledgerEntries            LedgerEntry[]
+  webhookDeliveries        WebhookDelivery[]
+  policies                 Policy[]
+  webhookEndpoints         WebhookEndpoint[]
+  integrations             Integration[]
+  serviceAccounts          ServiceAccount[]
+  apiKeys                  OrganizationApiKey[]
+  webhookReplayWindows     WebhookReplayWindow[]
 
   @@index([createdAt], map: "organizations_created_at_idx")
-  @@index([ownerUserId, createdAt], map: "organizations_owner_user_id_created_at_idx")
   @@map("organizations")
 }
 
@@ -118,70 +110,52 @@ model OrganizationMember {
   @@map("organization_members")
 }
 
-model OrganizationInvitation {
-  id             String                 @id @default(cuid())
-  organizationId String                 @map("organization_id")
-  email          String
-  role           OrganizationMemberRole
-  invitedByUserId String?               @map("invited_by_user_id")
-  createdAt      DateTime               @default(now()) @map("created_at")
-  expiresAt      DateTime               @map("expires_at")
-  acceptedAt     DateTime?              @map("accepted_at")
-  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invitedByUser  User?                  @relation("OrganizationInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
-
-  @@unique([organizationId, email], map: "organization_invitations_organization_id_email_key")
-  @@index([email, acceptedAt, expiresAt], map: "organization_invitations_email_accepted_expires_idx")
-  @@index([organizationId, createdAt], map: "organization_invitations_organization_id_created_at_idx")
-  @@map("organization_invitations")
-}
-
 model ApprovalRequest {
-  organizationId         String                @map("organization_id")
-  id                String                @id @default(uuid()) @db.Uuid
-  externalRequestId String?               @map("external_request_id")
-  requestedBySystem String                @map("requested_by_system")
-  requestedByActorId String?              @map("requested_by_actor_id")
-  idempotencyKey    String?               @map("idempotency_key")
-  requestFingerprintHash String           @db.Char(64) @map("request_fingerprint_hash")
-  approvalAccessTokenHash String          @unique @db.Char(64) @map("approval_access_token_hash")
-  action            String
-  resourceType      String                @map("resource_type")
-  resourceId        String                @map("resource_id")
-  params            Json
-  paramsHash        String                @db.Char(64) @map("params_hash")
-  riskLevel         RiskLevel             @map("risk_level")
-  status            ApprovalRequestStatus
-  callbackUrl       String?               @map("callback_url")
-  deliverCapabilityMode CapabilityDeliveryMode @default(none) @map("deliver_capability_mode")
-  machinePrincipalType MachinePrincipalType? @map("machine_principal_type")
-  machinePrincipalId String?              @map("machine_principal_id")
-  policyResult      Json                  @map("policy_result")
-  expiresAt         DateTime              @map("expires_at")
-  decidedAt         DateTime?             @map("decided_at")
-  createdAt         DateTime              @default(now()) @map("created_at")
-  updatedAt         DateTime              @updatedAt @map("updated_at")
-  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  decision          ApprovalDecision?
-  capability        Capability?
+  organizationId          String                   @map("organization_id")
+  id                      String                   @id @default(uuid()) @db.Uuid
+  externalRequestId       String?                  @map("external_request_id")
+  requestedBySystem       String                   @map("requested_by_system")
+  requestedByActorId      String?                  @map("requested_by_actor_id")
+  idempotencyKey          String?                  @map("idempotency_key")
+  requestFingerprintHash  String                   @map("request_fingerprint_hash") @db.Char(64)
+  approvalAccessTokenHash String                   @unique @map("approval_access_token_hash") @db.Char(64)
+  action                  String
+  resourceType            String                   @map("resource_type")
+  resourceId              String                   @map("resource_id")
+  params                  Json
+  paramsHash              String                   @map("params_hash") @db.Char(64)
+  riskLevel               RiskLevel                @map("risk_level")
+  status                  ApprovalRequestStatus
+  callbackUrl             String?                  @map("callback_url")
+  deliverCapabilityMode   CapabilityDeliveryMode   @default(none) @map("deliver_capability_mode")
+  machinePrincipalType    MachinePrincipalType?    @map("machine_principal_type")
+  machinePrincipalId      String?                  @map("machine_principal_id")
+  policyResult            Json                     @map("policy_result")
+  expiresAt               DateTime                 @map("expires_at")
+  decidedAt               DateTime?                @map("decided_at")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  decision                ApprovalDecision?
+  capability              Capability?
   capabilityExchangeToken CapabilityExchangeToken?
-  auditEvents       AuditEvent[]
-  immutableEvents   ImmutableEvent[]
-  webhookDeliveries WebhookDelivery[]
+  auditEvents             AuditEvent[]
+  immutableEvents         ImmutableEvent[]
+  webhookDeliveries       WebhookDelivery[]
 
+  @@unique([organizationId, requestedBySystem, idempotencyKey], map: "approval_requests_org_system_idemp_key")
+  @@unique([organizationId, requestedBySystem, externalRequestId], map: "approval_requests_org_system_external_key")
   @@index([organizationId, status, expiresAt], map: "approval_requests_org_status_expires_idx")
   @@index([organizationId, resourceType, resourceId, createdAt], map: "approval_requests_org_resource_created_idx")
   @@index([organizationId, requestedBySystem, createdAt], map: "approval_requests_org_system_created_idx")
   @@index([organizationId, createdAt], map: "approval_requests_org_created_idx")
-  @@unique([organizationId, requestedBySystem, idempotencyKey], map: "approval_requests_org_system_idemp_key")
-  @@unique([organizationId, requestedBySystem, externalRequestId], map: "approval_requests_org_system_external_key")
   @@map("approval_requests")
 }
 
 model ApprovalDecision {
-  organizationId       String               @map("organization_id")
+  organizationId      String               @map("organization_id")
   id                  String               @id @default(uuid()) @db.Uuid
-  approvalRequestId   String               @db.Uuid @map("approval_request_id")
+  approvalRequestId   String               @map("approval_request_id") @db.Uuid
   decision            ApprovalDecisionType
   approverId          String               @map("approver_id")
   approverDisplayName String?              @map("approver_display_name")
@@ -198,19 +172,19 @@ model ApprovalDecision {
 }
 
 model Capability {
-  organizationId    String           @map("organization_id")
-  id                String           @id @default(uuid()) @db.Uuid
-  approvalRequestId String           @db.Uuid @map("approval_request_id")
+  organizationId    String                   @map("organization_id")
+  id                String                   @id @default(uuid()) @db.Uuid
+  approvalRequestId String                   @map("approval_request_id") @db.Uuid
   action            String
-  resourceType      String           @map("resource_type")
-  resourceId        String           @map("resource_id")
-  paramsHash        String           @db.Char(64) @map("params_hash")
-  tokenHash         String           @unique @db.Char(64) @map("token_hash")
-  expiresAt         DateTime         @map("expires_at")
-  issuedAt          DateTime         @default(now()) @map("issued_at")
-  revokedAt         DateTime?        @map("revoked_at")
-  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  approvalRequest   ApprovalRequest  @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  resourceType      String                   @map("resource_type")
+  resourceId        String                   @map("resource_id")
+  paramsHash        String                   @map("params_hash") @db.Char(64)
+  tokenHash         String                   @unique @map("token_hash") @db.Char(64)
+  expiresAt         DateTime                 @map("expires_at")
+  issuedAt          DateTime                 @default(now()) @map("issued_at")
+  revokedAt         DateTime?                @map("revoked_at")
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  approvalRequest   ApprovalRequest          @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
   exchangeToken     CapabilityExchangeToken?
 
   @@unique([approvalRequestId], map: "capabilities_approval_request_id_key")
@@ -221,22 +195,22 @@ model Capability {
 }
 
 model CapabilityExchangeToken {
-  organizationId          String               @map("organization_id")
-  id                      String               @id @default(uuid()) @db.Uuid
-  approvalRequestId       String               @unique @db.Uuid @map("approval_request_id")
-  capabilityId            String               @unique @db.Uuid @map("capability_id")
-  exchangeTokenHash       String               @unique @db.Char(64) @map("exchange_token_hash")
-  encryptedCapabilityToken String?             @map("encrypted_capability_token")
-  callbackUrl             String?              @map("callback_url")
-  machinePrincipalType    MachinePrincipalType? @map("machine_principal_type")
-  machinePrincipalId      String?              @map("machine_principal_id")
-  expiresAt               DateTime             @map("expires_at")
-  usedAt                  DateTime?            @map("used_at")
-  revokedAt               DateTime?            @map("revoked_at")
-  createdAt               DateTime             @default(now()) @map("created_at")
-  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  approvalRequest         ApprovalRequest      @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
-  capability              Capability           @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  organizationId           String                @map("organization_id")
+  id                       String                @id @default(uuid()) @db.Uuid
+  approvalRequestId        String                @unique @map("approval_request_id") @db.Uuid
+  capabilityId             String                @unique @map("capability_id") @db.Uuid
+  exchangeTokenHash        String                @unique @map("exchange_token_hash") @db.Char(64)
+  encryptedCapabilityToken String?               @map("encrypted_capability_token")
+  callbackUrl              String?               @map("callback_url")
+  machinePrincipalType     MachinePrincipalType? @map("machine_principal_type")
+  machinePrincipalId       String?               @map("machine_principal_id")
+  expiresAt                DateTime              @map("expires_at")
+  usedAt                   DateTime?             @map("used_at")
+  revokedAt                DateTime?             @map("revoked_at")
+  createdAt                DateTime              @default(now()) @map("created_at")
+  organization             Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  approvalRequest          ApprovalRequest       @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  capability               Capability            @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, expiresAt], map: "capability_exchange_tokens_org_expires_idx")
   @@index([organizationId, usedAt, expiresAt], map: "capability_exchange_tokens_org_used_expires_idx")
@@ -244,9 +218,9 @@ model CapabilityExchangeToken {
 }
 
 model AuditEvent {
-  organizationId     String           @map("organization_id")
+  organizationId    String           @map("organization_id")
   id                String           @id @default(uuid()) @db.Uuid
-  approvalRequestId String?          @db.Uuid @map("approval_request_id")
+  approvalRequestId String?          @map("approval_request_id") @db.Uuid
   eventType         String           @map("event_type")
   actorType         String           @map("actor_type")
   actorId           String?          @map("actor_id")
@@ -261,12 +235,12 @@ model AuditEvent {
 }
 
 model ImmutableEvent {
-  organizationId     String           @map("organization_id")
+  organizationId    String           @map("organization_id")
   id                String           @id @default(uuid()) @db.Uuid
-  approvalRequestId String?          @db.Uuid @map("approval_request_id")
+  approvalRequestId String?          @map("approval_request_id") @db.Uuid
   eventType         String           @map("event_type")
   payload           Json
-  payloadHash       String           @db.Char(64) @map("payload_hash")
+  payloadHash       String           @map("payload_hash") @db.Char(64)
   createdAt         DateTime         @default(now()) @map("created_at")
   organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   approvalRequest   ApprovalRequest? @relation(fields: [approvalRequestId], references: [id], onDelete: SetNull)
@@ -280,10 +254,10 @@ model ImmutableEvent {
 model LedgerEntry {
   organizationId   String         @map("organization_id")
   id               String         @id @default(uuid()) @db.Uuid
-  immutableEventId String         @unique @db.Uuid @map("immutable_event_id")
+  immutableEventId String         @unique @map("immutable_event_id") @db.Uuid
   sequence         Int
-  previousHash     String?        @db.Char(64) @map("previous_hash")
-  entryHash        String         @unique @db.Char(64) @map("entry_hash")
+  previousHash     String?        @map("previous_hash") @db.Char(64)
+  entryHash        String         @unique @map("entry_hash") @db.Char(64)
   createdAt        DateTime       @default(now()) @map("created_at")
   organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   immutableEvent   ImmutableEvent @relation(fields: [immutableEventId], references: [id], onDelete: Cascade)
@@ -294,9 +268,9 @@ model LedgerEntry {
 }
 
 model WebhookDelivery {
-  organizationId     String                @map("organization_id")
+  organizationId    String                @map("organization_id")
   id                String                @id @default(uuid()) @db.Uuid
-  approvalRequestId String                @db.Uuid @map("approval_request_id")
+  approvalRequestId String                @map("approval_request_id") @db.Uuid
   callbackUrl       String                @map("callback_url")
   eventType         String                @map("event_type")
   status            WebhookDeliveryStatus @default(pending)
@@ -336,7 +310,7 @@ model WebhookEndpoint {
   organizationId    String       @map("organization_id")
   name              String
   callbackUrl       String       @map("callback_url")
-  signingSecretHash String?      @db.Char(64) @map("signing_secret_hash")
+  signingSecretHash String?      @map("signing_secret_hash") @db.Char(64)
   createdAt         DateTime     @default(now()) @map("created_at")
   updatedAt         DateTime     @updatedAt @map("updated_at")
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -359,17 +333,6 @@ model Integration {
   @@map("integrations")
 }
 
-model BetaWaitlistEntry {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  company   String
-  useCase   String   @map("use_case")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([createdAt], map: "beta_waitlist_created_at_idx")
-  @@map("beta_waitlist")
-}
-
 model RateLimitWindow {
   id          String   @id @default(cuid())
   scope       String
@@ -386,15 +349,15 @@ model RateLimitWindow {
 }
 
 model WebhookReplayWindow {
-  id               String       @id @default(cuid())
-  organizationId   String       @map("organization_id")
-  target           String
-  replayKey        String       @db.Char(64) @map("replay_key")
-  eventType        String       @map("event_type")
-  approvalRequestId String?     @db.Uuid @map("approval_request_id")
-  expiresAt        DateTime     @map("expires_at")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                String       @id @default(cuid())
+  organizationId    String       @map("organization_id")
+  target            String
+  replayKey         String       @map("replay_key") @db.Char(64)
+  eventType         String       @map("event_type")
+  approvalRequestId String?      @map("approval_request_id") @db.Uuid
+  expiresAt         DateTime     @map("expires_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, target, replayKey], map: "webhook_replay_windows_org_target_replay_key_key")
   @@index([expiresAt], map: "webhook_replay_windows_expires_at_idx")
@@ -403,35 +366,35 @@ model WebhookReplayWindow {
 }
 
 model ApproverUser {
-  id                             String              @id @default(uuid()) @db.Uuid
-  email                          String              @unique
-  displayName                    String              @map("display_name")
-  status                         ApproverUserStatus  @default(active)
-  registrationChallenge          String?             @map("registration_challenge")
-  registrationChallengeExpiresAt DateTime?           @map("registration_challenge_expires_at")
-  authenticationChallenge        String?             @map("authentication_challenge")
-  authenticationChallengeExpiresAt DateTime?         @map("authentication_challenge_expires_at")
-  createdAt                      DateTime            @default(now()) @map("created_at")
-  updatedAt                      DateTime            @updatedAt @map("updated_at")
-  credentials                    WebauthnCredential[]
-  sessions                       ApproverSession[]
+  id                               String               @id @default(uuid()) @db.Uuid
+  email                            String               @unique
+  displayName                      String               @map("display_name")
+  status                           ApproverUserStatus   @default(active)
+  registrationChallenge            String?              @map("registration_challenge")
+  registrationChallengeExpiresAt   DateTime?            @map("registration_challenge_expires_at")
+  authenticationChallenge          String?              @map("authentication_challenge")
+  authenticationChallengeExpiresAt DateTime?            @map("authentication_challenge_expires_at")
+  createdAt                        DateTime             @default(now()) @map("created_at")
+  updatedAt                        DateTime             @updatedAt @map("updated_at")
+  credentials                      WebauthnCredential[]
+  sessions                         ApproverSession[]
 
   @@index([status, createdAt], map: "approver_users_status_created_at_idx")
   @@map("approver_users")
 }
 
 model WebauthnCredential {
-  id             String        @id @default(uuid()) @db.Uuid
-  approverUserId String        @db.Uuid @map("approver_user_id")
-  credentialId   String        @unique @map("credential_id")
-  publicKey      Bytes         @map("public_key")
+  id             String            @id @default(uuid()) @db.Uuid
+  approverUserId String            @map("approver_user_id") @db.Uuid
+  credentialId   String            @unique @map("credential_id")
+  publicKey      Bytes             @map("public_key")
   counter        Int
-  transportsJson Json?         @map("transports_json")
-  deviceType     String?       @map("device_type")
-  backedUp       Boolean?      @map("backed_up")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  lastUsedAt     DateTime?     @map("last_used_at")
-  approverUser   ApproverUser  @relation(fields: [approverUserId], references: [id], onDelete: Cascade)
+  transportsJson Json?             @map("transports_json")
+  deviceType     String?           @map("device_type")
+  backedUp       Boolean?          @map("backed_up")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  lastUsedAt     DateTime?         @map("last_used_at")
+  approverUser   ApproverUser      @relation(fields: [approverUserId], references: [id], onDelete: Cascade)
   sessions       ApproverSession[]
 
   @@index([approverUserId, createdAt], map: "webauthn_credentials_approver_user_id_created_at_idx")
@@ -440,14 +403,14 @@ model WebauthnCredential {
 }
 
 model ApproverSession {
-  id               String        @id @default(uuid()) @db.Uuid
-  approverUserId   String        @db.Uuid @map("approver_user_id")
-  webauthnCredentialId String?   @db.Uuid @map("webauthn_credential_id")
-  sessionTokenHash String        @unique @db.Char(64) @map("session_token_hash")
-  expiresAt        DateTime      @map("expires_at")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  approverUser     ApproverUser  @relation(fields: [approverUserId], references: [id], onDelete: Cascade)
-  webauthnCredential WebauthnCredential? @relation(fields: [webauthnCredentialId], references: [id], onDelete: SetNull)
+  id                   String              @id @default(uuid()) @db.Uuid
+  approverUserId       String              @map("approver_user_id") @db.Uuid
+  webauthnCredentialId String?             @map("webauthn_credential_id") @db.Uuid
+  sessionTokenHash     String              @unique @map("session_token_hash") @db.Char(64)
+  expiresAt            DateTime            @map("expires_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  approverUser         ApproverUser        @relation(fields: [approverUserId], references: [id], onDelete: Cascade)
+  webauthnCredential   WebauthnCredential? @relation(fields: [webauthnCredentialId], references: [id], onDelete: SetNull)
 
   @@index([approverUserId, createdAt], map: "approver_sessions_approver_user_id_created_at_idx")
   @@index([expiresAt], map: "approver_sessions_expires_at_idx")
@@ -456,161 +419,46 @@ model ApproverSession {
 }
 
 model User {
-  id                   String               @id @default(cuid())
-  name                 String?
-  email                String?              @unique
-  emailVerified        DateTime?            @map("email_verified")
-  image                String?
-  activeOrganizationId String?              @map("active_organization_id")
-  activeOrganization   Organization?        @relation("ActiveOrganization", fields: [activeOrganizationId], references: [id], onDelete: SetNull)
-  ownedOrganizations   Organization[]       @relation("OrganizationOwner")
-  memberships          OrganizationMember[]
-  sentInvitations      OrganizationInvitation[] @relation("OrganizationInviter")
-  accounts             Account[]
-  sessions             Session[]
-  authenticators       Authenticator[]
-  createdServiceAccounts ServiceAccount[] @relation("ServiceAccountCreator")
-  createdApiKeys       OrganizationApiKey[] @relation("OrganizationApiKeyCreator")
+  id          String               @id @default(cuid())
+  name        String?
+  email       String?              @unique
+  memberships OrganizationMember[]
 
-  @@index([activeOrganizationId], map: "dashboard_users_active_organization_id_idx")
-  @@map("dashboard_users")
-}
-
-model Account {
-  userId            String         @map("user_id")
-  type              String
-  provider          String
-  providerAccountId String         @map("provider_account_id")
-  refresh_token     String?        @db.Text
-  access_token      String?        @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?        @db.Text
-  session_state     String?
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([provider, providerAccountId])
-  @@index([userId], map: "dashboard_accounts_user_id_idx")
-  @@map("dashboard_accounts")
-}
-
-model Session {
-  sessionToken String   @unique @map("session_token")
-  userId       String   @map("user_id")
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId], map: "dashboard_sessions_user_id_idx")
-  @@map("dashboard_sessions")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@id([identifier, token])
-  @@map("dashboard_verification_tokens")
-}
-
-model Authenticator {
-  credentialID         String  @unique @map("credential_id")
-  userId               String  @map("user_id")
-  providerAccountId    String  @map("provider_account_id")
-  credentialPublicKey  String  @map("credential_public_key")
-  counter              Int
-  credentialDeviceType String  @map("credential_device_type")
-  credentialBackedUp   Boolean @map("credential_backed_up")
-  transports           String?
-  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, credentialID])
-  @@index([userId], map: "dashboard_authenticators_user_id_idx")
-  @@map("dashboard_authenticators")
+  @@map("users")
 }
 
 model ServiceAccount {
-  id              String               @id @default(cuid())
-  organizationId  String               @map("organization_id")
-  name            String
-  description     String?
-  createdByUserId String?              @map("created_by_user_id")
-  createdAt       DateTime             @default(now()) @map("created_at")
-  revokedAt       DateTime?            @map("revoked_at")
-  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdByUser   User?                @relation("ServiceAccountCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  apiKeys         OrganizationApiKey[]
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  name           String
+  description    String?
+  createdAt      DateTime             @default(now()) @map("created_at")
+  revokedAt      DateTime?            @map("revoked_at")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apiKeys        OrganizationApiKey[]
 
   @@index([organizationId, createdAt], map: "service_accounts_org_created_idx")
   @@index([organizationId, revokedAt, createdAt], map: "service_accounts_org_revoked_created_idx")
-  @@index([createdByUserId, createdAt], map: "service_accounts_created_by_user_created_idx")
   @@map("service_accounts")
 }
 
 model OrganizationApiKey {
-  id               String         @id @default(cuid())
-  organizationId   String         @map("organization_id")
-  serviceAccountId String?        @map("service_account_id")
+  id               String          @id @default(cuid())
+  organizationId   String          @map("organization_id")
+  serviceAccountId String?         @map("service_account_id")
   name             String
-  keyPrefix        String         @unique @map("key_prefix")
-  keyHash          String         @unique @db.Char(64) @map("key_hash")
+  keyPrefix        String          @unique @map("key_prefix")
+  keyHash          String          @unique @map("key_hash") @db.Char(64)
   scopes           ApiKeyScope[]
-  createdByUserId  String?        @map("created_by_user_id")
-  lastUsedAt       DateTime?      @map("last_used_at")
-  revokedAt        DateTime?      @map("revoked_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lastUsedAt       DateTime?       @map("last_used_at")
+  revokedAt        DateTime?       @map("revoked_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   serviceAccount   ServiceAccount? @relation(fields: [serviceAccountId], references: [id], onDelete: SetNull)
-  createdByUser    User?          @relation("OrganizationApiKeyCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt], map: "organization_api_keys_org_created_idx")
   @@index([organizationId, revokedAt, createdAt], map: "organization_api_keys_org_revoked_created_idx")
   @@index([organizationId, lastUsedAt], map: "organization_api_keys_org_last_used_idx")
   @@index([serviceAccountId, createdAt], map: "organization_api_keys_service_account_created_idx")
-  @@index([createdByUserId, createdAt], map: "organization_api_keys_created_by_user_created_idx")
   @@map("organization_api_keys")
-}
-
-model OrganizationSubscription {
-  id                     String       @id @default(cuid())
-  organizationId         String       @unique @map("organization_id")
-  provider               String
-  providerCustomerId     String?      @map("provider_customer_id")
-  providerSubscriptionId String?      @map("provider_subscription_id")
-  planCode               String       @map("plan_code")
-  status                 String
-  currentPeriodEnd       DateTime?    @map("current_period_end")
-  providerLastEventId    String?      @map("provider_last_event_id")
-  providerLastEventCreatedAt DateTime? @map("provider_last_event_created_at")
-  createdAt              DateTime     @default(now()) @map("created_at")
-  updatedAt              DateTime     @updatedAt @map("updated_at")
-  organization           Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([provider, providerCustomerId], map: "organization_subscriptions_provider_customer_idx")
-  @@index([provider, providerSubscriptionId], map: "organization_subscriptions_provider_subscription_idx")
-  @@index([provider, providerLastEventCreatedAt], map: "organization_subscriptions_provider_last_event_created_idx")
-  @@index([planCode, status], map: "organization_subscriptions_plan_status_idx")
-  @@map("organization_subscriptions")
-}
-
-model StripeWebhookEventReceipt {
-  id                     String        @id @default(cuid())
-  organizationId         String?       @map("organization_id")
-  providerEventId        String        @unique @map("provider_event_id")
-  eventType              String        @map("event_type")
-  providerCustomerId     String?       @map("provider_customer_id")
-  providerSubscriptionId String?       @map("provider_subscription_id")
-  status                 String
-  outcomeReason          String?       @map("outcome_reason")
-  eventCreatedAt         DateTime      @map("event_created_at")
-  processedAt            DateTime?     @map("processed_at")
-  createdAt              DateTime      @default(now()) @map("created_at")
-  updatedAt              DateTime      @updatedAt @map("updated_at")
-  organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  @@index([organizationId, createdAt], map: "stripe_webhook_event_receipts_org_created_idx")
-  @@index([providerSubscriptionId, eventCreatedAt], map: "stripe_webhook_event_receipts_sub_event_created_idx")
-  @@index([status, createdAt], map: "stripe_webhook_event_receipts_status_created_idx")
-  @@map("stripe_webhook_event_receipts")
 }

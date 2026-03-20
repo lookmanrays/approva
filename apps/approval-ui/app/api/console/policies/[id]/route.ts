@@ -1,9 +1,9 @@
 import {
+  proxyApprovaJson,
+  getConsoleOperatorContext,
   getConsoleProxyOrganization,
-  getRequiredDashboardSession,
-  proxyAuthonJson,
-  requireDashboardSession,
-} from '@/lib/dashboard-auth/proxy';
+  requireConsoleAccess,
+} from '@/lib/console-proxy';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,17 +12,17 @@ interface RouteContext {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
   const { id } = await context.params;
   const body = await request.text();
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     `/v1/policies/${id}`,
     {
       method: 'PUT',
@@ -31,25 +31,25 @@ export async function PUT(request: Request, context: RouteContext) {
       },
       body,
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
   const { id } = await context.params;
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     `/v1/policies/${id}`,
     {
       method: 'DELETE',
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }

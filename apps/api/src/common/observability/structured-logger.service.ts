@@ -37,7 +37,7 @@ export class StructuredLoggerService extends ConsoleLogger implements LoggerServ
     const payload: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       level,
-      context: context ?? this.context ?? 'AuthonApi',
+      context: context ?? this.context ?? 'ApprovaApi',
       message: this.normalizeMessage(message),
       request_id: requestContext?.requestId ?? null,
       organization_id: requestContext?.organizationId ?? null,

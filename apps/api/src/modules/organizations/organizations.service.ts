@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import type {
   CurrentOrganizationResponse,
@@ -23,12 +24,23 @@ export interface ResolvedOrganizationContext {
   slug: string;
 }
 
+export interface SelfHostedOperatorIdentity {
+  userId: string;
+  email: string;
+  name: string;
+  role: 'owner';
+}
+
 @Injectable()
-export class OrganizationsService {
+export class OrganizationsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly requestContextService: RequestContextService,
   ) {}
+
+  async onModuleInit() {
+    await this.ensureDefaultOrganization();
+  }
 
   async resolveOrganization(
     input: OrganizationContextInput = {},
@@ -71,6 +83,7 @@ export class OrganizationsService {
       throw new ConflictException('Organization id and slug refer to different organizations.');
     }
 
+    await this.ensureLocalOperatorOwnership(organization.id, prisma);
     this.requestContextService.setOrganizationId(organization.id);
 
     return organization;
@@ -88,12 +101,10 @@ export class OrganizationsService {
       },
       update: {
         name,
-        onboardingCompletedAt: new Date(),
       },
       create: {
         name,
         slug,
-        onboardingCompletedAt: new Date(),
       },
       select: {
         id: true,
@@ -102,9 +113,18 @@ export class OrganizationsService {
       },
     });
 
+    await this.ensureLocalOperatorOwnership(organization.id, prisma);
     this.requestContextService.setOrganizationId(organization.id);
 
     return organization;
+  }
+
+  async isDefaultOrganizationId(
+    organizationId: string,
+    prisma: PrismaDbClient = this.prisma,
+  ) {
+    const organization = await this.ensureDefaultOrganization(prisma);
+    return organization.id === organizationId;
   }
 
   async getCurrentOrganization(
@@ -136,19 +156,12 @@ export class OrganizationsService {
       },
       data: {
         name,
-        ...(input.completeOnboarding
-          ? {
-              onboardingCompletedAt: new Date(),
-            }
-          : {}),
       },
       select: {
         id: true,
         name: true,
         slug: true,
         createdAt: true,
-        ownerUserId: true,
-        onboardingCompletedAt: true,
       },
     });
 
@@ -172,8 +185,6 @@ export class OrganizationsService {
         name: true,
         slug: true,
         createdAt: true,
-        ownerUserId: true,
-        onboardingCompletedAt: true,
       },
     });
   }
@@ -183,34 +194,101 @@ export class OrganizationsService {
     name: string;
     slug: string;
     createdAt: Date;
-    ownerUserId: string | null;
-    onboardingCompletedAt: Date | null;
   }) {
     return {
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
       createdAt: organization.createdAt.toISOString(),
-      ownerUserId: organization.ownerUserId,
-      onboardingCompletedAt: organization.onboardingCompletedAt?.toISOString() ?? null,
     };
   }
 
   private getDefaultOrganizationSlug() {
     return (
-      this.normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_SLUG) ?? 'default'
+      this.normalizeOptionalString(process.env.APPROVA_DEFAULT_ORGANIZATION_SLUG) ??
+      this.normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_SLUG) ??
+      'default'
     );
   }
 
   private getDefaultOrganizationName() {
     return (
+      this.normalizeOptionalString(process.env.APPROVA_DEFAULT_ORGANIZATION_NAME) ??
       this.normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_NAME) ??
       'Default Organization'
     );
   }
 
+  async ensureLocalOperatorOwnership(
+    organizationId: string,
+    prisma: PrismaDbClient,
+  ): Promise<SelfHostedOperatorIdentity> {
+    const email = this.getLocalOperatorEmail();
+    const name = this.getLocalOperatorName();
+
+    const user = await prisma.user.upsert({
+      where: {
+        email,
+      },
+      update: {
+        name,
+      },
+      create: {
+        email,
+        name,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await prisma.organizationMember.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: user.id,
+        },
+      },
+      update: {
+        role: 'owner',
+      },
+      create: {
+        organizationId,
+        userId: user.id,
+        role: 'owner',
+      },
+    });
+
+    return {
+      userId: user.id,
+      email,
+      name,
+      role: 'owner',
+    };
+  }
+
   private normalizeOptionalString(value?: string | null) {
     const normalized = value?.trim();
     return normalized ? normalized : null;
+  }
+
+  private normalizeEmail(value?: string | null) {
+    return this.normalizeOptionalString(value)?.toLowerCase() ?? null;
+  }
+
+  private getLocalOperatorEmail() {
+    return (
+      this.normalizeEmail(process.env.APPROVA_LOCAL_OPERATOR_EMAIL) ??
+      this.normalizeEmail(process.env.AUTHON_LOCAL_OPERATOR_EMAIL) ??
+      'operator@local.approva'
+    );
+  }
+
+  private getLocalOperatorName() {
+    return (
+      this.normalizeOptionalString(process.env.APPROVA_LOCAL_OPERATOR_NAME) ??
+      this.normalizeOptionalString(process.env.AUTHON_LOCAL_OPERATOR_NAME) ??
+      'Local operator'
+    );
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   Param,
@@ -51,15 +52,15 @@ export class ApprovalRequestsController {
   @ApiHeader({
     name: 'Authorization',
     required: false,
-    description: 'Optional machine auth bearer token in the format Bearer authon_sk_....',
+    description: 'Optional machine auth bearer token in the format Bearer approva_sk_....',
   })
   @ApiCreatedResponse({ description: 'Approval request created.' })
   async create(
     @Body() input: CreateApprovalRequestDto,
     @Headers('idempotency-key') idempotencyKey?: string,
     @Headers('authorization') authorization?: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     const machinePrincipal = await this.machineAuthService.authenticateFromAuthorizationHeader(
       authorization,
@@ -86,8 +87,8 @@ export class ApprovalRequestsController {
   @ApiOkResponse({ description: 'Expiration sweep completed.' })
   expireSweep(
     @Query() query: ExpireSweepDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ExpirationSweepResult> {
     return this.approvalRequestsService.expirePendingRequests(query.limit, {
       organizationId,
@@ -100,14 +101,14 @@ export class ApprovalRequestsController {
   @ApiHeader({
     name: 'Authorization',
     required: false,
-    description: 'Optional machine auth bearer token in the format Bearer authon_sk_....',
+    description: 'Optional machine auth bearer token in the format Bearer approva_sk_....',
   })
   @ApiOkResponse({ description: 'Approval request details.' })
   async getById(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Headers('authorization') authorization?: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
     const machinePrincipal = await this.machineAuthService.authenticateFromAuthorizationHeader(
@@ -136,8 +137,8 @@ export class ApprovalRequestsController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query() query: ApprovalAccessTokenQueryDto,
     @Req() request: Request,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
     const session = await this.authService.getSessionState(request);
@@ -158,19 +159,21 @@ export class ApprovalRequestsController {
   }
 
   @Post(':id/approve')
-  @ApiOperation({ summary: 'Approve a pending request' })
+  @ApiOperation({ summary: 'Legacy decision endpoint disabled; use secure-approve with passkey auth' })
   @ApiOkResponse({ description: 'Approval request approved.' })
   approve(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() input: ApproveRequestDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
-    return this.approvalRequestsService.approveRequest(id, input, {
-      organizationId,
-      organizationSlug,
-    });
+    void input;
+    void organizationId;
+    void organizationSlug;
+    throw new ForbiddenException(
+      'Passkey-authenticated secure approval is required. Use the secure approval URL and the /secure-approve endpoint.',
+    );
   }
 
   @Post(':id/secure-approve')
@@ -182,8 +185,8 @@ export class ApprovalRequestsController {
     @Query() query: ApprovalAccessTokenQueryDto,
     @Body() input: SecureDecisionDto,
     @Req() request: Request,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
     const session = await this.authService.requireAuthenticatedSession(request);
@@ -202,19 +205,21 @@ export class ApprovalRequestsController {
   }
 
   @Post(':id/reject')
-  @ApiOperation({ summary: 'Reject a pending request' })
+  @ApiOperation({ summary: 'Legacy decision endpoint disabled; use secure-reject with passkey auth' })
   @ApiOkResponse({ description: 'Approval request rejected.' })
   reject(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() input: RejectRequestDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
-    return this.approvalRequestsService.rejectRequest(id, input, {
-      organizationId,
-      organizationSlug,
-    });
+    void input;
+    void organizationId;
+    void organizationSlug;
+    throw new ForbiddenException(
+      'Passkey-authenticated secure rejection is required. Use the secure approval URL and the /secure-reject endpoint.',
+    );
   }
 
   @Post(':id/secure-reject')
@@ -226,8 +231,8 @@ export class ApprovalRequestsController {
     @Query() query: ApprovalAccessTokenQueryDto,
     @Body() input: SecureDecisionDto,
     @Req() request: Request,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
   ): Promise<ApprovalRequestResponse> {
     this.requestContextService.setApprovalRequestId(id);
     const session = await this.authService.requireAuthenticatedSession(request);

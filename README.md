@@ -24,13 +24,26 @@ Quick links:
 ### Local developer mode
 
 ```bash
-cp .env.example .env
-cp apps/api/.env.example apps/api/.env
-cp apps/approval-ui/.env.local.example apps/approval-ui/.env.local
 make dev
 ```
 
-This starts Postgres in Docker, applies the schema, and runs:
+This single command:
+
+- starts Postgres in Docker
+- installs dependencies on first run
+- generates the Prisma client
+- applies the schema automatically
+- seeds a sample approval request
+- prints the console URL, API docs URL, sample approver, and approval URL
+
+Then run the built-in round-trip demo:
+
+```bash
+make demo
+```
+
+It creates a live high-risk approval request, prints the secure approval URL, waits while you
+approve it in the UI, and then prints the result in the terminal.
 
 - Console: [http://localhost:3000/console/approvals](http://localhost:3000/console/approvals)
 - API docs: [http://localhost:4000/docs](http://localhost:4000/docs)

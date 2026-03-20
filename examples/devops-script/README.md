@@ -19,7 +19,7 @@ Then:
 
 ```bash
 export APPROVA_BASE_URL=http://localhost:4000
-export APPROVA_API_KEY=authon_sk_...
+export APPROVA_API_KEY=approva_sk_...
 
 bash examples/devops-script/deploy-with-approva.sh
 ```

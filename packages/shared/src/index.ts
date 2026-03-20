@@ -1,5 +1,4 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
-export type AuthonRuntimeMode = 'open-core' | 'cloud';
 export type OrganizationMemberRole = 'owner' | 'admin' | 'member' | 'approver';
 export type IntegrationType = 'slack' | 'webhook' | 'email';
 export type OrganizationPermission =
@@ -65,8 +64,6 @@ export interface Organization {
   name: string;
   slug: string;
   createdAt: string;
-  ownerUserId?: string | null;
-  onboardingCompletedAt?: string | null;
 }
 
 export interface OrganizationMembership {
@@ -83,7 +80,6 @@ export interface CurrentOrganizationResponse {
 
 export interface UpdateCurrentOrganizationInput {
   name: string;
-  completeOnboarding?: boolean;
 }
 
 const ORGANIZATION_PERMISSION_MAP: Record<
@@ -241,7 +237,6 @@ export interface ServiceAccountRecord {
   organizationId: string;
   name: string;
   description?: string | null;
-  createdByUserId?: string | null;
   createdAt: string;
   revokedAt?: string | null;
 }
@@ -268,7 +263,6 @@ export interface OrganizationApiKeyRecord {
   name: string;
   keyPrefix: string;
   scopes: ApiKeyScope[];
-  createdByUserId?: string | null;
   lastUsedAt?: string | null;
   revokedAt?: string | null;
   createdAt: string;
@@ -399,6 +393,8 @@ export interface SecureDecisionInput {
 }
 
 export interface PasskeyRegistrationStartInput {
+  requestId: string;
+  token: string;
   email: string;
 }
 
@@ -408,6 +404,8 @@ export interface PasskeyRegistrationStartResponse {
 }
 
 export interface PasskeyRegistrationFinishInput {
+  requestId: string;
+  token: string;
   email: string;
   response: Record<string, unknown>;
 }
@@ -418,6 +416,8 @@ export interface PasskeyRegistrationFinishResponse {
 }
 
 export interface PasskeyAuthenticationStartInput {
+  requestId: string;
+  token: string;
   email: string;
 }
 
@@ -427,6 +427,8 @@ export interface PasskeyAuthenticationStartResponse {
 }
 
 export interface PasskeyAuthenticationFinishInput {
+  requestId: string;
+  token: string;
   email: string;
   response: Record<string, unknown>;
 }

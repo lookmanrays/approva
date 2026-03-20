@@ -17,9 +17,9 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Get the active organization context' })
   @ApiOkResponse({ description: 'Organization retrieved.' })
   async getCurrent(
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<CurrentOrganizationResponse> {
     await this.organizationRbacService.requirePermission(
       'console:view',
@@ -38,9 +38,9 @@ export class OrganizationsController {
   @ApiOkResponse({ description: 'Organization updated.' })
   async updateCurrent(
     @Body() input: UpdateCurrentOrganizationDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<CurrentOrganizationResponse> {
     await this.organizationRbacService.requirePermission(
       'organization:manage',

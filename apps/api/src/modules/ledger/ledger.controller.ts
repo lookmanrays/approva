@@ -42,9 +42,9 @@ export class LedgerController {
   @ApiOkResponse({ description: 'Ledger verification result.' })
   async verify(
     @Body() input?: VerifyLedgerDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ) {
     if (input?.fromSeq && input?.toSeq && input.fromSeq > input.toSeq) {
       throw new BadRequestException('fromSeq must be less than or equal to toSeq.');

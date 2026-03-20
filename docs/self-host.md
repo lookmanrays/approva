@@ -8,10 +8,10 @@ Open-core mode is the default in this repository.
 
 ## What You Get
 
-When `AUTHON_RUNTIME_MODE=open-core`:
+When `APPROVA_RUNTIME_MODE=open-core`:
 
 - the default organization is created automatically
-- the console is available without dashboard sign-in
+- the console is available directly
 - approval decisions still require the secure approval link and passkey auth
 - service accounts, organization API keys, policies, integrations, audit, and ledger features stay enabled
 - health, readiness, metrics, and ledger verification endpoints stay available
@@ -19,11 +19,20 @@ When `AUTHON_RUNTIME_MODE=open-core`:
 ## Local Dev
 
 ```bash
-cp .env.example .env
-cp apps/api/.env.example apps/api/.env
-cp apps/approval-ui/.env.local.example apps/approval-ui/.env.local
 make dev
 ```
+
+`make dev` is the fastest local path. It starts Postgres, initializes the database,
+seeds a sample approval request, and prints the exact next steps in the terminal.
+
+For the fastest end-to-end human approval loop after startup:
+
+```bash
+make demo
+```
+
+This creates a live demo approval request, prints the secure approval URL, and waits in the
+terminal until you approve, reject, or let the request expire.
 
 Open:
 
@@ -56,10 +65,10 @@ Root `.env`:
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/approva?schema=public
-AUTHON_RUNTIME_MODE=open-core
-AUTHON_SELF_HOST_MODE=true
-AUTHON_DEFAULT_ORGANIZATION_NAME="Default Organization"
-AUTHON_DEFAULT_ORGANIZATION_SLUG=default
+APPROVA_RUNTIME_MODE=open-core
+APPROVA_SELF_HOST_MODE=true
+APPROVA_DEFAULT_ORGANIZATION_NAME="Default Organization"
+APPROVA_DEFAULT_ORGANIZATION_SLUG=default
 ```
 
 API `.env`:
@@ -78,9 +87,9 @@ UI `.env.local`:
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
-AUTHON_INTERNAL_API_BASE_URL=http://approva-api:4000
-AUTHON_RUNTIME_MODE=open-core
-AUTHON_SELF_HOST_MODE=true
+APPROVA_INTERNAL_API_BASE_URL=http://approva-api:4000
+APPROVA_RUNTIME_MODE=open-core
+APPROVA_SELF_HOST_MODE=true
 ```
 
 ## Verification
@@ -103,5 +112,4 @@ Useful endpoints:
 - Set real secrets for `APPROVAL_ACCESS_TOKEN_SECRET` and `WEBHOOK_SIGNING_SECRET`.
 - Set HTTPS origins for the UI and API before using passkeys outside localhost.
 - Set `PASSKEY_RP_ID` and `PASSKEY_EXPECTED_ORIGINS` to the final console origin.
-- Configure `AUTHON_INTEGRATION_ENCRYPTION_KEY` if you plan to store secret-backed integrations.
-- Optional dashboard auth can be enabled later, but it is not required for open-core console access.
+- Configure `APPROVA_INTEGRATION_ENCRYPTION_KEY` if you plan to store secret-backed integrations.

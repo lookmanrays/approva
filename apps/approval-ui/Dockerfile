@@ -11,8 +11,8 @@ WORKDIR /app
 FROM base AS builder
 
 ENV NODE_ENV=production
-ENV AUTHON_RUNTIME_MODE=open-core
-ENV AUTHON_SELF_HOST_MODE=true
+ENV APPROVA_RUNTIME_MODE=open-core
+ENV APPROVA_SELF_HOST_MODE=true
 ENV DATABASE_URL=postgresql://postgres:postgres@postgres:5432/approva?schema=public
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 

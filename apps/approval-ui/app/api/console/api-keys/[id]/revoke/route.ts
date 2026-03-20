@@ -1,9 +1,9 @@
 import {
+  proxyApprovaJson,
+  getConsoleOperatorContext,
   getConsoleProxyOrganization,
-  getRequiredDashboardSession,
-  proxyAuthonJson,
-  requireDashboardSession,
-} from '@/lib/dashboard-auth/proxy';
+  requireConsoleAccess,
+} from '@/lib/console-proxy';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,20 +12,20 @@ interface RouteContext {
 }
 
 export async function POST(_request: Request, context: RouteContext) {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
   const { id } = await context.params;
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     `/v1/api-keys/${id}/revoke`,
     {
       method: 'POST',
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }

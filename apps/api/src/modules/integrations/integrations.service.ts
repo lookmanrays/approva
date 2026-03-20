@@ -12,7 +12,6 @@ import type {
 import type { Integration } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { toPrismaJson } from '../../common/utils/prisma-json.util';
-import { BillingService } from '../billing/billing.service';
 import { IntegrationSecretsService } from './integration-secrets.service';
 import {
   OrganizationsService,
@@ -36,7 +35,6 @@ export class IntegrationsService {
     private readonly prisma: PrismaService,
     private readonly organizationsService: OrganizationsService,
     private readonly integrationSecretsService: IntegrationSecretsService,
-    private readonly billingService: BillingService,
   ) {}
 
   async listIntegrations(
@@ -62,7 +60,6 @@ export class IntegrationsService {
     organizationInput: OrganizationContextInput = {},
   ): Promise<IntegrationRecord> {
     const organization = await this.organizationsService.resolveOrganization(organizationInput);
-    await this.billingService.assertIntegrationCreationAllowed(organization.id);
     const configJson = this.buildStoredIntegrationConfig(input.type, input.configJson);
 
     try {

@@ -25,7 +25,7 @@ Default local settings:
 - example app: `http://localhost:4100`
 - webhook receiver: `http://localhost:4100/webhooks/approva`
 - Approva API base URL: `http://localhost:4000`
-- Approva API key: `APPROVA_API_KEY=authon_sk_...`
+- Approva API key: `APPROVA_API_KEY=approva_sk_...`
 
 ## Routes
 

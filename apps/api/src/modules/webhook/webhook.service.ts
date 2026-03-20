@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { RequestContextService } from '../../common/observability/request-context.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { PrismaDbClient } from '../../common/prisma/prisma.types';
@@ -79,7 +79,7 @@ export class WebhookService {
           message: 'Organization webhook retry rate limit exceeded.',
         });
       } catch (error) {
-        this.metricsService.increment('authon_webhook_failures_total');
+        this.metricsService.increment('approva_webhook_failures_total');
         this.logger.warn(
           `Webhook delivery ${delivery.id} skipped because the organization webhook retry limit was reached.`,
         );
@@ -148,7 +148,7 @@ export class WebhookService {
         body: rawPayload,
       });
 
-      const responseBody = (await response.text()).slice(0, 2000);
+      const responseBody = this.summarizeResponseBody(await response.text(), response.ok);
       await this.prisma.webhookDelivery.update({
         where: {
           id: delivery.id,
@@ -165,7 +165,7 @@ export class WebhookService {
       });
 
       if (response.ok) {
-        this.metricsService.increment('authon_webhook_deliveries_total');
+        this.metricsService.increment('approva_webhook_deliveries_total');
         await this.rateLimitService.recordWebhookReplay({
           organizationId: delivery.organizationId,
           target: `decision:${delivery.callbackUrl}`,
@@ -175,11 +175,11 @@ export class WebhookService {
       }
 
       if (!response.ok) {
-        this.metricsService.increment('authon_webhook_failures_total');
+        this.metricsService.increment('approva_webhook_failures_total');
         this.logger.warn(`Webhook delivery ${delivery.id} failed with status ${response.status}. Retry is stubbed for MVP.`);
       }
     } catch (error) {
-      this.metricsService.increment('authon_webhook_failures_total');
+      this.metricsService.increment('approva_webhook_failures_total');
       await this.prisma.webhookDelivery.update({
         where: {
           id: delivery.id,
@@ -190,7 +190,7 @@ export class WebhookService {
             increment: 1,
           },
           lastAttemptAt: new Date(),
-          responseBody: error instanceof Error ? error.message : 'Unknown webhook error',
+          responseBody: this.summarizeErrorMessage(error),
         },
       });
 
@@ -272,7 +272,7 @@ export class WebhookService {
       });
 
       if (response.ok) {
-        this.metricsService.increment('authon_webhook_deliveries_total');
+        this.metricsService.increment('approva_webhook_deliveries_total');
         await this.rateLimitService.recordWebhookReplay({
           organizationId: input.organizationId,
           target: `integration:${input.url}`,
@@ -282,7 +282,7 @@ export class WebhookService {
       }
 
       if (!response.ok) {
-        this.metricsService.increment('authon_webhook_failures_total');
+        this.metricsService.increment('approva_webhook_failures_total');
       }
 
       return {
@@ -291,12 +291,41 @@ export class WebhookService {
         body: (await response.text()).slice(0, 2000),
       };
     } catch (error) {
-      this.metricsService.increment('authon_webhook_failures_total');
+      this.metricsService.increment('approva_webhook_failures_total');
       throw error;
     }
   }
 
   private getWebhookSigningSecret() {
-    return process.env.WEBHOOK_SIGNING_SECRET ?? 'dev-webhook-signing-secret';
+    const secret = process.env.WEBHOOK_SIGNING_SECRET?.trim();
+
+    if (!secret) {
+      throw new InternalServerErrorException('WEBHOOK_SIGNING_SECRET is not configured.');
+    }
+
+    return secret;
+  }
+
+  private summarizeResponseBody(body: string, ok: boolean) {
+    if (ok) {
+      return null;
+    }
+
+    const normalized = body.replace(/\s+/g, ' ').trim();
+
+    if (!normalized) {
+      return null;
+    }
+
+    return normalized.slice(0, 200);
+  }
+
+  private summarizeErrorMessage(error: unknown) {
+    if (!(error instanceof Error)) {
+      return 'Unknown webhook error';
+    }
+
+    const normalized = `${error.name}: ${error.message}`.replace(/\s+/g, ' ').trim();
+    return normalized.slice(0, 200);
   }
 }

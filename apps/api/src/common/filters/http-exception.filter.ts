@@ -48,7 +48,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: this.normalizePath(request.originalUrl ?? request.url),
       requestId: requestContext?.requestId ?? null,
       error: {
         code:
@@ -61,5 +61,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         details,
       },
     });
+  }
+
+  private normalizePath(url: string) {
+    const [pathname] = url.split('?');
+    return pathname || '/';
   }
 }

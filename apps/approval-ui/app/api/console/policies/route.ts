@@ -1,42 +1,42 @@
 import { NextResponse } from 'next/server';
 import {
+  proxyApprovaJson,
+  getConsoleOperatorContext,
   getConsoleProxyOrganization,
-  getRequiredDashboardSession,
-  proxyAuthonJson,
-  requireDashboardSession,
-} from '@/lib/dashboard-auth/proxy';
+  requireConsoleAccess,
+} from '@/lib/console-proxy';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     '/v1/policies',
     {
       method: 'GET',
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireDashboardSession();
+  const unauthorized = await requireConsoleAccess();
 
   if (unauthorized) {
     return unauthorized;
   }
 
-  const session = await getRequiredDashboardSession();
+  const operatorContext = await getConsoleOperatorContext();
   const body = await request.text();
 
-  return proxyAuthonJson(
+  return proxyApprovaJson(
     '/v1/policies',
     {
       method: 'POST',
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       },
       body,
     },
-    getConsoleProxyOrganization(session),
+    getConsoleProxyOrganization(operatorContext),
   );
 }
 

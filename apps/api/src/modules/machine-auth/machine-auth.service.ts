@@ -22,7 +22,6 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import type { PrismaDbClient } from '../../common/prisma/prisma.types';
 import { RequestContextService } from '../../common/observability/request-context.service';
 import { generateOpaqueToken, hashTokenValue } from '../../common/utils/hash.util';
-import { BillingService } from '../billing/billing.service';
 import {
   type OrganizationContextInput,
   OrganizationsService,
@@ -44,6 +43,10 @@ const PRISMA_TO_SHARED_SCOPE: Record<PrismaApiKeyScope, SharedApiKeyScope> = {
   webhooks_manage: 'webhooks:manage',
 };
 
+const PRIMARY_API_KEY_PREFIX = 'approva_sk';
+const LEGACY_API_KEY_PREFIX = 'authon_sk';
+const SUPPORTED_API_KEY_PREFIXES = [`${PRIMARY_API_KEY_PREFIX}_`, `${LEGACY_API_KEY_PREFIX}_`];
+
 export interface MachineAuthPrincipal {
   organizationId: string;
   apiKeyId: string;
@@ -60,7 +63,6 @@ export class MachineAuthService {
     private readonly prisma: PrismaService,
     private readonly organizationsService: OrganizationsService,
     private readonly requestContextService: RequestContextService,
-    private readonly billingService: BillingService,
   ) {}
 
   async authenticateFromAuthorizationHeader(
@@ -161,7 +163,6 @@ export class MachineAuthService {
   async createServiceAccount(
     input: CreateServiceAccountInput,
     organizationInput: OrganizationContextInput = {},
-    createdByUserId?: string | null,
     prisma: PrismaDbClient = this.prisma,
   ): Promise<ServiceAccountRecord> {
     const organization = await this.organizationsService.resolveOrganization(
@@ -175,7 +176,6 @@ export class MachineAuthService {
         organizationId: organization.id,
         name,
         description: this.normalizeOptionalString(input.description),
-        createdByUserId: this.normalizeCreatorUserId(createdByUserId),
       },
     });
 
@@ -258,14 +258,12 @@ export class MachineAuthService {
   async createApiKey(
     input: CreateOrganizationApiKeyInput,
     organizationInput: OrganizationContextInput = {},
-    createdByUserId?: string | null,
     prisma: PrismaDbClient = this.prisma,
   ): Promise<CreateOrganizationApiKeyResponse> {
     const organization = await this.organizationsService.resolveOrganization(
       organizationInput,
       prisma,
     );
-    await this.billingService.assertApiKeysEnabled(organization.id, prisma);
     const name = this.normalizeRequiredString(input.name, 'API key name is required.');
     const serviceAccountId = this.normalizeOptionalString(input.serviceAccountId);
 
@@ -291,7 +289,7 @@ export class MachineAuthService {
     }
 
     const rawKey = generateOpaqueToken({
-      prefix: 'authon_sk',
+      prefix: PRIMARY_API_KEY_PREFIX,
       randomLength: 32,
     });
     const keyRecord = await prisma.organizationApiKey.create({
@@ -302,7 +300,6 @@ export class MachineAuthService {
         keyPrefix: this.buildKeyPrefix(rawKey),
         keyHash: hashTokenValue(rawKey),
         scopes: input.scopes.map((scope) => SHARED_TO_PRISMA_SCOPE[scope]),
-        createdByUserId: this.normalizeCreatorUserId(createdByUserId),
       },
       include: {
         serviceAccount: {
@@ -371,7 +368,7 @@ export class MachineAuthService {
       throw new UnauthorizedException('Authorization header must use Bearer auth.');
     }
 
-    if (!token.startsWith('authon_sk_')) {
+    if (!SUPPORTED_API_KEY_PREFIXES.some((prefix) => token.startsWith(prefix))) {
       throw new UnauthorizedException('Invalid API key format.');
     }
 
@@ -387,7 +384,6 @@ export class MachineAuthService {
     organizationId: string;
     name: string;
     description: string | null;
-    createdByUserId: string | null;
     createdAt: Date;
     revokedAt: Date | null;
   }): ServiceAccountRecord {
@@ -396,7 +392,6 @@ export class MachineAuthService {
       organizationId: input.organizationId,
       name: input.name,
       description: input.description,
-      createdByUserId: input.createdByUserId,
       createdAt: input.createdAt.toISOString(),
       revokedAt: input.revokedAt?.toISOString() ?? null,
     };
@@ -409,7 +404,6 @@ export class MachineAuthService {
     name: string;
     keyPrefix: string;
     scopes: PrismaApiKeyScope[];
-    createdByUserId: string | null;
     lastUsedAt: Date | null;
     revokedAt: Date | null;
     createdAt: Date;
@@ -425,7 +419,6 @@ export class MachineAuthService {
       name: input.name,
       keyPrefix: input.keyPrefix,
       scopes: input.scopes.map((scope) => PRISMA_TO_SHARED_SCOPE[scope]),
-      createdByUserId: input.createdByUserId,
       lastUsedAt: input.lastUsedAt?.toISOString() ?? null,
       revokedAt: input.revokedAt?.toISOString() ?? null,
       createdAt: input.createdAt.toISOString(),
@@ -442,16 +435,6 @@ export class MachineAuthService {
 
     if (!normalized) {
       throw new BadRequestException(message);
-    }
-
-    return normalized;
-  }
-
-  private normalizeCreatorUserId(value?: string | null) {
-    const normalized = this.normalizeOptionalString(value);
-
-    if (!normalized || normalized === 'open-core-operator') {
-      return null;
     }
 
     return normalized;

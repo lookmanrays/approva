@@ -21,9 +21,9 @@ export class ApiKeysController {
   @ApiOperation({ summary: 'List organization API keys' })
   @ApiOkResponse({ description: 'API keys listed.' })
   async list(
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<OrganizationApiKeyListResponse> {
     await this.organizationRbacService.requirePermission(
       'api_keys:manage',
@@ -42,9 +42,9 @@ export class ApiKeysController {
   @ApiOkResponse({ description: 'API key created and revealed once.' })
   async create(
     @Body() input: CreateOrganizationApiKeyDto,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<CreateOrganizationApiKeyResponse> {
     await this.organizationRbacService.requirePermission(
       'api_keys:manage',
@@ -58,7 +58,6 @@ export class ApiKeysController {
         organizationId,
         organizationSlug,
       },
-      dashboardUserId,
     );
   }
 
@@ -67,9 +66,9 @@ export class ApiKeysController {
   @ApiOkResponse({ description: 'API key revoked.' })
   async revoke(
     @Param('id') id: string,
-    @Headers('x-authon-organization-id') organizationId?: string,
-    @Headers('x-authon-organization-slug') organizationSlug?: string,
-    @Headers('x-authon-dashboard-user-id') dashboardUserId?: string,
+    @Headers('x-approva-organization-id') organizationId?: string,
+    @Headers('x-approva-organization-slug') organizationSlug?: string,
+    @Headers('x-approva-user-id') dashboardUserId?: string,
   ): Promise<RevokeOrganizationApiKeyResponse> {
     await this.organizationRbacService.requirePermission(
       'api_keys:manage',

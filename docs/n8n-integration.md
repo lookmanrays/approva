@@ -48,7 +48,7 @@ Suggested n8n steps:
    - intended next action
    - any correlation key needed to resume later
 5. Notification / Slack / email node can surface `approvalUrl`
-6. workflow ends in `waiting_for_authon_decision`
+6. workflow ends in `waiting_for_approva_decision`
 
 ### Flow B: Continue On Decision Webhook
 

@@ -66,9 +66,8 @@ bash scripts/smoke-test.sh
 
 ## Optional Add-Ons
 
-- Resend-backed email delivery for notifications and magic links
+- Resend-backed email delivery for approval notifications
 - Slack fallback delivery
-- optional dashboard auth for authenticated operator sessions
-- encrypted organization integrations via `AUTHON_INTEGRATION_ENCRYPTION_KEY`
+- encrypted organization integrations via `APPROVA_INTEGRATION_ENCRYPTION_KEY`
 
 This repository ships and documents the self-host deployment path only.

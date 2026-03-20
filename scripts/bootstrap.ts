@@ -1,7 +1,6 @@
 #!/usr/bin/env tsx
 
 import { PrismaClient, ApiKeyScope as PrismaApiKeyScope } from '@prisma/client';
-import { getAuthonRuntimeMode } from '../packages/config/src/index';
 import {
   generateOpaqueToken,
   hashTokenValue,
@@ -11,7 +10,6 @@ import { encryptApplicationValue } from '../apps/api/src/common/utils/applicatio
 type BootstrapOptions = {
   organizationName?: string;
   organizationSlug?: string;
-  ownerEmail?: string;
   createServiceAccount: boolean;
   serviceAccountName: string;
   serviceAccountDescription?: string;
@@ -26,18 +24,10 @@ type BootstrapOptions = {
 };
 
 type BootstrapSummary = {
-  runtimeMode: 'open-core' | 'cloud';
   organization: {
     id: string;
     name: string;
     slug: string;
-    ownerUserId: string | null;
-  } | null;
-  ownerUser: {
-    id: string;
-    email: string;
-    attached: boolean;
-    note?: string;
   } | null;
   policyStatus: 'created' | 'existing' | 'skipped';
   serviceAccount: {
@@ -65,11 +55,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const runtimeMode = getAuthonRuntimeMode();
   const summary: BootstrapSummary = {
-    runtimeMode,
     organization: null,
-    ownerUser: null,
     policyStatus: 'skipped',
     serviceAccount: null,
     apiKey: null,
@@ -78,38 +65,13 @@ async function main() {
   };
 
   try {
-    const organization = await resolveBootstrapOrganization(options, runtimeMode, summary);
-    summary.organization = organization
-      ? {
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-          ownerUserId: organization.ownerUserId,
-        }
-      : null;
+    const organization = await resolveBootstrapOrganization(options);
+    summary.organization = organization;
 
-    if (!organization) {
-      printSummary(summary);
-      return;
-    }
-
-    await attachOwnerIfPossible(organization.id, options.ownerEmail, summary);
-    summary.organization = await prisma.organization.findUnique({
-      where: {
-        id: organization.id,
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        ownerUserId: true,
-      },
-    });
     await ensureDefaultPoliciesIfNoneExist(organization.id, summary);
 
     const serviceAccount = await maybeCreateServiceAccount(
       organization.id,
-      summary.ownerUser?.attached ? summary.ownerUser.id : null,
       options,
       summary,
     );
@@ -117,7 +79,6 @@ async function main() {
     await maybeCreateApiKey(
       organization.id,
       serviceAccount?.id ?? null,
-      summary.ownerUser?.attached ? summary.ownerUser.id : null,
       options,
       summary,
     );
@@ -130,266 +91,31 @@ async function main() {
   }
 }
 
-async function resolveBootstrapOrganization(
-  options: BootstrapOptions,
-  runtimeMode: 'open-core' | 'cloud',
-  summary: BootstrapSummary,
-) {
-  if (runtimeMode === 'open-core') {
-    const slug = options.organizationSlug || getDefaultOrganizationSlug();
-    const name = options.organizationName || getDefaultOrganizationName();
-    const organization = await prisma.organization.upsert({
-      where: {
-        slug,
-      },
-      update: {
-        name,
-        onboardingCompletedAt: new Date(),
-      },
-      create: {
-        name,
-        slug,
-        onboardingCompletedAt: new Date(),
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        ownerUserId: true,
-      },
-    });
-
-    return organization;
-  }
-
-  const requestedSlug =
-    normalizeOptionalString(options.organizationSlug) ||
-    slugify(options.organizationName ?? '');
+async function resolveBootstrapOrganization(options: BootstrapOptions) {
   const requestedName = normalizeOptionalString(options.organizationName);
+  const slug =
+    normalizeOptionalString(options.organizationSlug) ||
+    slugify(requestedName ?? getDefaultOrganizationName()) ||
+    getDefaultOrganizationSlug();
+  const name = requestedName || getDefaultOrganizationName();
 
-  if (requestedSlug) {
-    const existing = await prisma.organization.findUnique({
-      where: {
-        slug: requestedSlug,
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        ownerUserId: true,
-      },
-    });
-
-    if (existing) {
-      if (requestedName && existing.name !== requestedName) {
-        return prisma.organization.update({
-          where: {
-            id: existing.id,
-          },
-          data: {
-            name: requestedName,
-          },
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            ownerUserId: true,
-          },
-        });
-      }
-
-      return existing;
-    }
-  }
-
-  const existingOrganizations = await prisma.organization.count();
-
-  if (!requestedName) {
-    summary.nextSteps.push(
-      'No organization was created in AUTHON_RUNTIME_MODE=cloud because no --organization-name was provided.',
-    );
-    summary.nextSteps.push(
-      'If you are using the compatibility cloud mode, sign in once through /sign-in to let Approva provision the first owner organization automatically, or rerun bootstrap with --organization-name and --owner-email for a known dashboard user.',
-    );
-    if (existingOrganizations > 0) {
-      summary.nextSteps.push(
-        'You can also rerun bootstrap with --organization-slug to target an existing organization.',
-      );
-    }
-    return null;
-  }
-
-  const ownerUser = await findDashboardUserByEmail(options.ownerEmail);
-
-  if (!ownerUser) {
-    summary.ownerUser = options.ownerEmail
-      ? {
-          id: '',
-          email: options.ownerEmail,
-          attached: false,
-          note:
-            'Owner email was not found as a dashboard user. Sign in once through /sign-in with that email, then rerun bootstrap to attach ownership safely.',
-        }
-      : null;
-    summary.nextSteps.push(
-      'Cloud bootstrap did not create a new organization because no existing dashboard user was available to own it safely.',
-    );
-    summary.nextSteps.push(
-      'Sign in once through /sign-in with the intended owner email, then rerun bootstrap with --organization-name and --owner-email.',
-    );
-    return null;
-  }
-
-  const slug = requestedSlug || slugify(requestedName);
-
-  return prisma.organization.create({
-    data: {
-      name: requestedName,
+  return prisma.organization.upsert({
+    where: {
       slug,
-      ownerUserId: ownerUser.id,
-      onboardingCompletedAt: new Date(),
-      members: {
-        create: {
-          userId: ownerUser.id,
-          role: 'owner',
-        },
-      },
+    },
+    update: {
+      name,
+    },
+    create: {
+      name,
+      slug,
     },
     select: {
       id: true,
       name: true,
       slug: true,
-      ownerUserId: true,
     },
   });
-}
-
-async function attachOwnerIfPossible(
-  organizationId: string,
-  ownerEmail: string | undefined,
-  summary: BootstrapSummary,
-) {
-  const normalizedEmail = normalizeEmail(ownerEmail);
-
-  if (!normalizedEmail) {
-    return;
-  }
-
-  const ownerUser = await prisma.user.findUnique({
-    where: {
-      email: normalizedEmail,
-    },
-    select: {
-      id: true,
-      email: true,
-      activeOrganizationId: true,
-    },
-  });
-
-  if (!ownerUser) {
-    summary.ownerUser = {
-      id: '',
-      email: normalizedEmail,
-      attached: false,
-      note:
-        'The owner email is not yet a dashboard user. Sign in once through /sign-in, then rerun bootstrap to attach ownership.',
-    };
-    return;
-  }
-
-  const organization = await prisma.organization.findUniqueOrThrow({
-    where: {
-      id: organizationId,
-    },
-    select: {
-      id: true,
-      ownerUserId: true,
-      slug: true,
-      name: true,
-    },
-  });
-
-  if (organization.ownerUserId && organization.ownerUserId !== ownerUser.id) {
-    await prisma.organizationMember.upsert({
-      where: {
-        organizationId_userId: {
-          organizationId,
-          userId: ownerUser.id,
-        },
-      },
-      update: {},
-      create: {
-        organizationId,
-        userId: ownerUser.id,
-        role: 'admin',
-      },
-    });
-
-    if (!ownerUser.activeOrganizationId) {
-      await prisma.user.update({
-        where: {
-          id: ownerUser.id,
-        },
-        data: {
-          activeOrganizationId: organizationId,
-        },
-      });
-    }
-
-    summary.ownerUser = {
-      id: ownerUser.id,
-      email: ownerUser.email ?? normalizedEmail,
-      attached: false,
-      note:
-        'This organization already has an owner. The requested user was attached as an admin instead of replacing ownership.',
-    };
-    return;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.organizationMember.upsert({
-      where: {
-        organizationId_userId: {
-          organizationId,
-          userId: ownerUser.id,
-        },
-      },
-      update: {
-        role: 'owner',
-      },
-      create: {
-        organizationId,
-        userId: ownerUser.id,
-        role: 'owner',
-      },
-    });
-
-    await tx.organization.update({
-      where: {
-        id: organizationId,
-      },
-      data: {
-        ownerUserId: ownerUser.id,
-      },
-    });
-
-    if (!ownerUser.activeOrganizationId) {
-      await tx.user.update({
-        where: {
-          id: ownerUser.id,
-        },
-        data: {
-          activeOrganizationId: organizationId,
-        },
-      });
-    }
-  });
-
-  summary.ownerUser = {
-    id: ownerUser.id,
-    email: ownerUser.email ?? normalizedEmail,
-    attached: true,
-  };
 }
 
 async function ensureDefaultPoliciesIfNoneExist(
@@ -433,7 +159,6 @@ async function ensureDefaultPoliciesIfNoneExist(
 
 async function maybeCreateServiceAccount(
   organizationId: string,
-  createdByUserId: string | null,
   options: BootstrapOptions,
   summary: BootstrapSummary,
 ) {
@@ -472,7 +197,6 @@ async function maybeCreateServiceAccount(
       organizationId,
       name: options.serviceAccountName,
       description: normalizeOptionalString(options.serviceAccountDescription),
-      createdByUserId,
     },
     select: {
       id: true,
@@ -492,7 +216,6 @@ async function maybeCreateServiceAccount(
 async function maybeCreateApiKey(
   organizationId: string,
   serviceAccountId: string | null,
-  createdByUserId: string | null,
   options: BootstrapOptions,
   summary: BootstrapSummary,
 ) {
@@ -530,7 +253,7 @@ async function maybeCreateApiKey(
   }
 
   const rawKey = generateOpaqueToken({
-    prefix: 'authon_sk',
+    prefix: 'approva_sk',
     randomLength: 32,
   });
 
@@ -542,7 +265,6 @@ async function maybeCreateApiKey(
       keyPrefix: rawKey.slice(0, Math.min(rawKey.length, 22)),
       keyHash: hashTokenValue(rawKey),
       scopes: options.apiKeyScopes,
-      createdByUserId,
     },
     select: {
       id: true,
@@ -719,21 +441,9 @@ async function maybeConfigureIntegrations(
 function populateNextSteps(summary: BootstrapSummary, options: BootstrapOptions) {
   const uiBaseUrl = getUiBaseUrl();
 
-  if (summary.runtimeMode === 'cloud') {
-    if (summary.organization && summary.ownerUser?.attached) {
-      summary.nextSteps.push(
-        `Sign in through ${uiBaseUrl}/sign-in with ${summary.ownerUser.email} and confirm ${uiBaseUrl}/console/approvals loads against ${summary.organization.slug}.`,
-      );
-    } else if (summary.organization && !summary.ownerUser?.attached) {
-      summary.nextSteps.push(
-        `An AUTHON_RUNTIME_MODE=cloud organization exists, but first owner attachment is still manual. Sign in through ${uiBaseUrl}/sign-in, then rerun bootstrap with --owner-email if needed.`,
-      );
-    }
-  } else {
-    summary.nextSteps.push(
-      `Open ${uiBaseUrl}/console/approvals to confirm the default organization console is available.`,
-    );
-  }
+  summary.nextSteps.push(
+    `Open ${uiBaseUrl}/console/approvals to confirm the organization console is available.`,
+  );
 
   if (summary.policyStatus === 'created') {
     summary.nextSteps.push(
@@ -750,7 +460,6 @@ function populateNextSteps(summary: BootstrapSummary, options: BootstrapOptions)
 
 function printSummary(summary: BootstrapSummary) {
   console.log('Approva bootstrap summary');
-  console.log(`Runtime mode: ${summary.runtimeMode}`);
   console.log('');
 
   if (summary.organization) {
@@ -761,15 +470,6 @@ function printSummary(summary: BootstrapSummary) {
   }
 
   console.log(`Policies: ${summary.policyStatus}`);
-
-  if (summary.ownerUser) {
-    console.log('');
-    console.log(`Owner email: ${summary.ownerUser.email}`);
-    console.log(`Owner attached: ${summary.ownerUser.attached ? 'yes' : 'no'}`);
-    if (summary.ownerUser.note) {
-      console.log(`Owner note: ${summary.ownerUser.note}`);
-    }
-  }
 
   if (summary.serviceAccount) {
     console.log('');
@@ -846,7 +546,6 @@ function parseArgs(argv: string[]): BootstrapOptions {
   return {
     organizationName: readStringFlag(flags, '--organization-name'),
     organizationSlug: readStringFlag(flags, '--organization-slug'),
-    ownerEmail: readStringFlag(flags, '--owner-email'),
     createServiceAccount: Boolean(flags.get('--create-service-account')),
     serviceAccountName:
       readStringFlag(flags, '--service-account-name') ?? 'Bootstrap Agent',
@@ -904,7 +603,6 @@ Usage:
 Options:
   --organization-name <name>         Create or target an organization by name
   --organization-slug <slug>         Target a specific organization slug
-  --owner-email <email>              Attach a known dashboard user as owner when possible
   --create-service-account           Create or reuse a bootstrap service account
   --service-account-name <name>      Service account name (default: Bootstrap Agent)
   --create-api-key                   Create or reuse a machine API key
@@ -941,30 +639,20 @@ function parseCsv(rawValue?: string) {
     .filter(Boolean);
 }
 
-async function findDashboardUserByEmail(email?: string) {
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!normalizedEmail) {
-    return null;
-  }
-
-  return prisma.user.findUnique({
-    where: {
-      email: normalizedEmail,
-    },
-    select: {
-      id: true,
-      email: true,
-    },
-  });
-}
-
 function getDefaultOrganizationName() {
-  return normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_NAME) || 'Default Organization';
+  return (
+    normalizeOptionalString(process.env.APPROVA_DEFAULT_ORGANIZATION_NAME) ||
+    normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_NAME) ||
+    'Default Organization'
+  );
 }
 
 function getDefaultOrganizationSlug() {
-  return normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_SLUG) || 'default';
+  return (
+    normalizeOptionalString(process.env.APPROVA_DEFAULT_ORGANIZATION_SLUG) ||
+    normalizeOptionalString(process.env.AUTHON_DEFAULT_ORGANIZATION_SLUG) ||
+    'default'
+  );
 }
 
 function getUiBaseUrl() {
@@ -983,16 +671,12 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, '')
     .replace(/-{2,}/g, '-');
 
-  return normalized || 'authon-org';
+  return normalized || 'approva-org';
 }
 
 function normalizeOptionalString(value?: string | null) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
-}
-
-function normalizeEmail(value?: string | null) {
-  return normalizeOptionalString(value)?.toLowerCase() ?? null;
 }
 
 function maskSecret(secret: string) {

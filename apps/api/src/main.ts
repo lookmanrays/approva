@@ -18,7 +18,7 @@ async function bootstrap() {
   });
   app.useLogger(app.get(StructuredLoggerService));
   const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.set('trust proxy', true);
+  expressApp.set('trust proxy', 'loopback, linklocal, uniquelocal');
   const allowedOrigins = buildAllowedApiOrigins(process.env);
 
   expressApp.use((request: Request, response: Response, next: NextFunction) => {
@@ -62,6 +62,9 @@ async function bootstrap() {
       'Authorization',
       'Content-Type',
       'Cookie',
+      'X-Approva-User-Id',
+      'X-Approva-Organization-Id',
+      'X-Approva-Organization-Slug',
       'X-Authon-Dashboard-User-Id',
       'X-Authon-Organization-Id',
       'X-Authon-Organization-Slug',

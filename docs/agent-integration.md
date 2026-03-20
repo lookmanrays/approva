@@ -40,7 +40,7 @@ Instead, Approva delivers a short-lived single-use exchange token on the approve
 ## Prerequisites
 
 - an Approva organization
-- a machine API key in the format `authon_sk_...`
+- a machine API key in the format `approva_sk_...`
 - an approval policy that requires approval for the action you want to gate
 - a webhook receiver that can verify:
   - `X-Approval-Signature`
@@ -51,7 +51,7 @@ Instead, Approva delivers a short-lived single-use exchange token on the approve
 Machine clients authenticate with:
 
 ```http
-Authorization: Bearer authon_sk_...
+Authorization: Bearer approva_sk_...
 ```
 
 The API key resolves:
@@ -73,7 +73,7 @@ Example:
 
 ```bash
 curl -X POST "http://localhost:4000/v1/approval-requests" \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: deploy-run-001" \
   -d '{
@@ -141,7 +141,7 @@ Exchange the webhook token immediately:
 
 ```bash
 curl -X POST "http://localhost:4000/v1/capabilities/exchange" \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "exchangeToken": "cex_..."
@@ -178,7 +178,7 @@ Use the raw capability token for the protected action:
 
 ```bash
 curl -X POST "http://localhost:4000/v1/capabilities/use" \
-  -H "Authorization: Bearer authon_sk_..." \
+  -H "Authorization: Bearer approva_sk_..." \
   -H "Content-Type: application/json" \
   -d '{
     "token": "cap_...",

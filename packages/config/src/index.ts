@@ -1,132 +1,79 @@
-export type AuthonRuntimeMode = 'open-core' | 'cloud';
+import { randomBytes } from 'node:crypto';
 
 type EnvRecord = Record<string, string | undefined>;
+const openCoreDashboardAuthSecretFallback = randomBytes(32).toString('hex');
 
-export interface AuthonEnvironmentValidationIssue {
+export interface ApprovaEnvironmentValidationIssue {
   name: string;
   message: string;
 }
 
-export class AuthonEnvironmentValidationError extends Error {
+export class ApprovaEnvironmentValidationError extends Error {
   constructor(
     readonly app: 'api' | 'approval-ui',
-    readonly runtimeMode: AuthonRuntimeMode,
-    readonly issues: AuthonEnvironmentValidationIssue[],
+    readonly issues: ApprovaEnvironmentValidationIssue[],
   ) {
-    super(buildValidationMessage(app, runtimeMode, issues));
-    this.name = 'AuthonEnvironmentValidationError';
+    super(buildValidationMessage(app, issues));
+    this.name = 'ApprovaEnvironmentValidationError';
   }
 }
 
-export function getAuthonRuntimeMode(env: EnvRecord = process.env): AuthonRuntimeMode {
-  const configured = getConfiguredAuthonRuntimeMode(env);
-
-  if (configured === 'open-core' || configured === 'cloud') {
-    return configured;
-  }
-
-  if (normalizeOptionalString(env.AUTHON_SELF_HOST_MODE) === 'true') {
-    return 'open-core';
-  }
-
-  return 'open-core';
-}
-
-export function isOpenCoreRuntimeMode(env: EnvRecord = process.env) {
-  return getAuthonRuntimeMode(env) === 'open-core';
-}
-
-export function isCloudRuntimeMode(env: EnvRecord = process.env) {
-  return getAuthonRuntimeMode(env) === 'cloud';
-}
-
-export function getConfiguredAuthonRuntimeMode(env: EnvRecord = process.env) {
-  return normalizeOptionalString(env.AUTHON_RUNTIME_MODE);
-}
-
-export function getAuthonApiEnvironmentIssues(env: EnvRecord = process.env) {
-  const runtimeMode = getAuthonRuntimeMode(env);
-  const issues: AuthonEnvironmentValidationIssue[] = [
-    ...getRuntimeModeIssues(env),
-  ];
+export function getApprovaApiEnvironmentIssues(env: EnvRecord = process.env) {
+  const issues: ApprovaEnvironmentValidationIssue[] = [];
+  const nodeEnv = normalizeOptionalString(env.NODE_ENV);
 
   requireEnv(env, issues, 'DATABASE_URL', 'Database connection is required.');
 
-  if (runtimeMode === 'cloud') {
+  if (nodeEnv === 'production') {
     requireEnv(
       env,
       issues,
-      'AUTHON_INTEGRATION_ENCRYPTION_KEY',
-      'Cloud mode requires application-level integration secret encryption.',
-    );
-    validateEncryptionKey(
-      env.AUTHON_INTEGRATION_ENCRYPTION_KEY,
-      issues,
-      'AUTHON_INTEGRATION_ENCRYPTION_KEY',
+      'APPROVAL_ACCESS_TOKEN_SECRET',
+      'Approval access token signing is required in production.',
     );
     requireEnv(
       env,
       issues,
       'WEBHOOK_SIGNING_SECRET',
-      'Cloud mode requires webhook signing to be configured.',
+      'Webhook signing is required in production.',
+    );
+  }
+
+  const integrationEncryptionKey =
+    normalizeOptionalString(env.APPROVA_INTEGRATION_ENCRYPTION_KEY) ??
+    normalizeOptionalString(env.AUTHON_INTEGRATION_ENCRYPTION_KEY);
+
+  if (integrationEncryptionKey) {
+    validateEncryptionKey(
+      integrationEncryptionKey,
+      issues,
+      'APPROVA_INTEGRATION_ENCRYPTION_KEY',
     );
   }
 
   return issues;
 }
 
-export function validateAuthonApiEnvironment(env: EnvRecord = process.env) {
-  const runtimeMode = getAuthonRuntimeMode(env);
-  const issues = getAuthonApiEnvironmentIssues(env);
+export function validateApprovaApiEnvironment(env: EnvRecord = process.env) {
+  const issues = getApprovaApiEnvironmentIssues(env);
 
   if (issues.length > 0) {
-    throw new AuthonEnvironmentValidationError('api', runtimeMode, issues);
+    throw new ApprovaEnvironmentValidationError('api', issues);
   }
 
   return env;
 }
 
-export function getAuthonUiEnvironmentIssues(env: EnvRecord = process.env) {
-  const runtimeMode = getAuthonRuntimeMode(env);
-  const issues: AuthonEnvironmentValidationIssue[] = [
-    ...getRuntimeModeIssues(env),
-  ];
-
-  if (runtimeMode === 'cloud') {
-    requireEnv(env, issues, 'DATABASE_URL', 'Dashboard auth storage requires Postgres.');
-    requireEnv(
-      env,
-      issues,
-      'AUTH_SECRET',
-      'Cloud mode requires Auth.js session signing.',
-    );
-
-    if (!hasConfiguredOAuthProvider(env)) {
-      issues.push({
-        name: 'OAUTH_PROVIDER',
-        message:
-          'Cloud mode requires at least one OAuth provider configuration: GitHub, Google, or Microsoft Entra ID.',
-      });
-    }
-
-    if (!hasEmailSender(env)) {
-      issues.push({
-        name: 'AUTHON_EMAIL_FROM',
-        message:
-          'Cloud mode requires an email sender address for magic links and notifications.',
-      });
-    }
-  }
-
-  return issues;
+export function getApprovaUiEnvironmentIssues(env: EnvRecord = process.env) {
+  void env;
+  return [] as ApprovaEnvironmentValidationIssue[];
 }
 
-export function validateAuthonUiEnvironment(env: EnvRecord = process.env) {
-  const runtimeMode = getAuthonRuntimeMode(env);
-  const issues = getAuthonUiEnvironmentIssues(env);
+export function validateApprovaUiEnvironment(env: EnvRecord = process.env) {
+  const issues = getApprovaUiEnvironmentIssues(env);
 
   if (issues.length > 0) {
-    throw new AuthonEnvironmentValidationError('approval-ui', runtimeMode, issues);
+    throw new ApprovaEnvironmentValidationError('approval-ui', issues);
   }
 
   return env;
@@ -139,14 +86,10 @@ export function getOpenCoreDashboardAuthSecret(env: EnvRecord = process.env) {
     return configured;
   }
 
-  if (isOpenCoreRuntimeMode(env)) {
-    return 'authon-open-core-dashboard-secret';
-  }
-
-  return undefined;
+  return openCoreDashboardAuthSecretFallback;
 }
 
-export function getAuthonIntegrationEncryptionKeyMaterial(rawValue?: string | null) {
+export function getApprovaIntegrationEncryptionKeyMaterial(rawValue?: string | null) {
   const raw = normalizeOptionalString(rawValue);
 
   if (!raw) {
@@ -161,39 +104,9 @@ export function getAuthonIntegrationEncryptionKeyMaterial(rawValue?: string | nu
   return base64 ?? null;
 }
 
-function hasConfiguredOAuthProvider(env: EnvRecord) {
-  return [
-    ['AUTH_GITHUB_ID', 'AUTH_GITHUB_SECRET'],
-    ['AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET'],
-    ['AUTH_MICROSOFT_ENTRA_ID_ID', 'AUTH_MICROSOFT_ENTRA_ID_SECRET'],
-  ].some(([idKey, secretKey]) => Boolean(normalizeOptionalString(env[idKey]) && normalizeOptionalString(env[secretKey])));
-}
-
-function hasEmailSender(env: EnvRecord) {
-  return Boolean(
-    normalizeOptionalString(env.AUTHON_EMAIL_FROM) ||
-      normalizeOptionalString(env.AUTH_EMAIL_FROM),
-  );
-}
-
-function getRuntimeModeIssues(env: EnvRecord) {
-  const configured = getConfiguredAuthonRuntimeMode(env);
-
-  if (!configured || configured === 'open-core' || configured === 'cloud') {
-    return [];
-  }
-
-  return [
-    {
-      name: 'AUTHON_RUNTIME_MODE',
-      message: 'AUTHON_RUNTIME_MODE must be either "open-core" or "cloud".',
-    },
-  ] satisfies AuthonEnvironmentValidationIssue[];
-}
-
 function requireEnv(
   env: EnvRecord,
-  issues: AuthonEnvironmentValidationIssue[],
+  issues: ApprovaEnvironmentValidationIssue[],
   name: string,
   message: string,
 ) {
@@ -207,14 +120,14 @@ function requireEnv(
 
 function validateEncryptionKey(
   rawValue: string | undefined,
-  issues: AuthonEnvironmentValidationIssue[],
+  issues: ApprovaEnvironmentValidationIssue[],
   name: string,
 ) {
   if (!normalizeOptionalString(rawValue)) {
     return;
   }
 
-  if (!getAuthonIntegrationEncryptionKeyMaterial(rawValue)) {
+  if (!getApprovaIntegrationEncryptionKeyMaterial(rawValue)) {
     issues.push({
       name,
       message: `${name} must be a 32-byte base64 or 64-character hex key.`,
@@ -244,11 +157,23 @@ function tryDecodeBase64(value: string) {
 
 function buildValidationMessage(
   app: 'api' | 'approval-ui',
-  runtimeMode: AuthonRuntimeMode,
-  issues: AuthonEnvironmentValidationIssue[],
+  issues: ApprovaEnvironmentValidationIssue[],
 ) {
   return [
-    `[Approva Config] ${app} startup validation failed for ${runtimeMode} mode.`,
+    `[Approva Config] ${app} startup validation failed.`,
     ...issues.map((issue) => `- ${issue.name}: ${issue.message}`),
   ].join('\n');
 }
+
+export {
+  ApprovaEnvironmentValidationError as AuthonEnvironmentValidationError,
+  getApprovaApiEnvironmentIssues as getAuthonApiEnvironmentIssues,
+  getApprovaIntegrationEncryptionKeyMaterial as getAuthonIntegrationEncryptionKeyMaterial,
+  getApprovaUiEnvironmentIssues as getAuthonUiEnvironmentIssues,
+  validateApprovaApiEnvironment as validateAuthonApiEnvironment,
+  validateApprovaUiEnvironment as validateAuthonUiEnvironment,
+};
+
+export type {
+  ApprovaEnvironmentValidationIssue as AuthonEnvironmentValidationIssue,
+};

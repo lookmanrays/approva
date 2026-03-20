@@ -53,10 +53,8 @@ docs/
   secure approval URL plus passkey-authenticated approver session.
 - Machine auth:
   organization API keys, optionally attached to service accounts.
-- Optional dashboard auth:
-  only for authenticated console sessions when a self-host deployment enables it.
-
-Approval auth never depends on dashboard auth.
+- Console access:
+  self-host operator access scoped to the default organization and console proxy routes.
 
 ## Open-Core Console
 
