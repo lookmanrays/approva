@@ -7,8 +7,13 @@ import type {
   Organization,
   OrganizationMemberRole,
   OrganizationMembership,
+  OrganizationSecurityEvent,
+  OrganizationSecurityEventListResponse,
 } from '@approva/shared';
-import { listConsoleApprovalRequests } from '@/lib/console-api';
+import {
+  listConsoleApprovalRequests,
+  listConsoleSecurityEvents,
+} from '@/lib/console-api';
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 const sampleApproverEmail =
@@ -24,8 +29,92 @@ interface OperatorIdentity {
   email?: string | null;
 }
 
+function formatTimestamp(value?: string | null) {
+  return value ? new Date(value).toLocaleString() : 'Not available';
+}
+
+function getSecurityEventLabel(eventType: string) {
+  switch (eventType) {
+    case 'organization.user.created':
+      return 'Local user created';
+    case 'organization.user.updated':
+      return 'Local user updated';
+    case 'organization.user.disabled':
+      return 'Local user disabled';
+    case 'organization.user.enabled':
+      return 'Local user enabled';
+    case 'organization.user.owner_granted':
+      return 'Owner access granted';
+    case 'organization.user.owner_reduced':
+      return 'Owner access reduced';
+    case 'organization.user.removed':
+      return 'Local user removed';
+    default:
+      return eventType;
+  }
+}
+
+function getSecurityEventStory(entry: OrganizationSecurityEvent) {
+  const targetUser = readTargetUser(entry.payload);
+
+  if (!targetUser) {
+    return 'A local-user security event was recorded for this organization.';
+  }
+
+  switch (entry.eventType) {
+    case 'organization.user.created':
+      return `${targetUser.email} was added as ${targetUser.role ?? 'a managed user'}.`;
+    case 'organization.user.updated':
+      return `${targetUser.email} had their role, profile, or password updated.`;
+    case 'organization.user.disabled':
+      return `${targetUser.email} lost console and approval access immediately.`;
+    case 'organization.user.enabled':
+      return `${targetUser.email} regained console and approval access.`;
+    case 'organization.user.owner_granted':
+      return `${targetUser.email} was promoted into the owner role for this organization.`;
+    case 'organization.user.owner_reduced':
+      return `${targetUser.email} had owner access reduced back to admin for this organization.`;
+    case 'organization.user.removed':
+      return `${targetUser.email} was removed from the organization membership set.`;
+    default:
+      return `${targetUser.email} had a security-relevant user lifecycle change recorded.`;
+  }
+}
+
+function readTargetUser(payload: Record<string, unknown>) {
+  const targetUser =
+    payload.targetUser && typeof payload.targetUser === 'object' && !Array.isArray(payload.targetUser)
+      ? (payload.targetUser as Record<string, unknown>)
+      : null;
+
+  if (!targetUser) {
+    return null;
+  }
+
+  return {
+    id: typeof targetUser.id === 'string' ? targetUser.id : null,
+    email: typeof targetUser.email === 'string' ? targetUser.email : 'Unknown user',
+    name: typeof targetUser.name === 'string' ? targetUser.name : null,
+    role: typeof targetUser.role === 'string' ? targetUser.role : null,
+    status: typeof targetUser.status === 'string' ? targetUser.status : null,
+  };
+}
+
+function getSecurityActorSummary(entry: OrganizationSecurityEvent) {
+  if (entry.actorType === 'system') {
+    return 'System';
+  }
+
+  if (entry.actorDisplay) {
+    return entry.actorDisplay;
+  }
+
+  return entry.actorId ?? null;
+}
+
 export function ConsoleSystemPage({
   activeRole,
+  canManageOrganization,
   canManagePolicies,
   canManageIntegrations,
   canVerifyLedger,
@@ -34,6 +123,7 @@ export function ConsoleSystemPage({
   organizationMemberships,
 }: {
   activeRole: OrganizationMemberRole | null;
+  canManageOrganization: boolean;
   canManagePolicies: boolean;
   canManageIntegrations: boolean;
   canVerifyLedger: boolean;
@@ -43,7 +133,10 @@ export function ConsoleSystemPage({
 }) {
   const [approvalsSnapshot, setApprovalsSnapshot] =
     useState<InternalApprovalRequestListResponse | null>(null);
+  const [securityEventsSnapshot, setSecurityEventsSnapshot] =
+    useState<OrganizationSecurityEventListResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [securityEventsError, setSecurityEventsError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +164,39 @@ export function ConsoleSystemPage({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!canManageOrganization) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const response = await listConsoleSecurityEvents();
+
+        if (!cancelled) {
+          setSecurityEventsSnapshot(response);
+          setSecurityEventsError(null);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setSecurityEventsError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Security events are not reachable.',
+          );
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canManageOrganization]);
 
   return (
     <main className="console-stack">
@@ -125,7 +251,7 @@ export function ConsoleSystemPage({
         <article className="card stack">
           <div>
             <div className="label">System status</div>
-            <h2>Local operator snapshot</h2>
+            <h2>Console session snapshot</h2>
           </div>
 
           <div className="console-detail-list">
@@ -152,7 +278,7 @@ export function ConsoleSystemPage({
             <div className="console-detail-item">
               <span>Console access</span>
               <strong>
-                Local self-host operator context, separate from approval passkeys.
+                Local authenticated console session, separate from approval passkeys.
               </strong>
             </div>
             <div className="console-detail-item">
@@ -219,7 +345,7 @@ export function ConsoleSystemPage({
           <div className="session-summary">
             <div className="session-line">
               <strong>Status</strong>
-              <span className="status approved">operator ready</span>
+              <span className="status approved">authenticated</span>
             </div>
             <div className="session-line">
               <strong>Console identity</strong>
@@ -245,8 +371,80 @@ export function ConsoleSystemPage({
 
           <div className="empty">
             Approval decisions still require the secure approval link plus a separate passkey
-            approver session. Console access stays separate from approval authentication.
+            approver session. Console login stays separate from approval authentication.
           </div>
+        </article>
+
+        <article className="card stack">
+          <div className="console-section-header">
+            <div>
+              <div className="label">Security events</div>
+              <h2>Recent local user access changes</h2>
+            </div>
+            <span className="console-meta-pill">
+              {securityEventsSnapshot?.items.length ?? 0} recent
+            </span>
+          </div>
+
+          {!canManageOrganization ? (
+            <div className="empty">
+              Only owners and admins can inspect local user access changes.
+            </div>
+          ) : securityEventsError ? (
+            <div className="error">{securityEventsError}</div>
+          ) : !securityEventsSnapshot ? (
+            <div className="empty">Loading organization security events...</div>
+          ) : securityEventsSnapshot.items.length === 0 ? (
+            <div className="empty">
+              No local user lifecycle events are recorded yet. Creating, updating, disabling,
+              enabling, and removing users will appear here.
+            </div>
+          ) : (
+            <div className="timeline">
+              {securityEventsSnapshot.items.map((entry) => {
+                const actorSummary = getSecurityActorSummary(entry);
+                const targetUser = readTargetUser(entry.payload);
+
+                return (
+                  <article className="timeline-item done" key={entry.immutableEventId}>
+                    <div className="timeline-marker" />
+                    <div className="timeline-details">
+                      <div className="timeline-header">
+                        <div>
+                          <div className="timeline-story">{getSecurityEventLabel(entry.eventType)}</div>
+                          <p>{getSecurityEventStory(entry)}</p>
+                        </div>
+                        <div className="timeline-meta">{formatTimestamp(entry.createdAt)}</div>
+                      </div>
+
+                      <div className="timeline-meta">
+                        Actor: {actorSummary ?? 'Unknown'}
+                        {targetUser ? ` · Target: ${targetUser.email}` : ''}
+                      </div>
+
+                      <details className="timeline-details-panel">
+                        <summary>Technical details</summary>
+                        <div className="timeline-meta mono-wrap">
+                          Immutable event id: {entry.immutableEventId}
+                          <br />
+                          Event type: {entry.eventType}
+                          <br />
+                          Payload hash: {entry.payloadHash}
+                          <br />
+                          Ledger seq: {entry.ledgerSequence ?? 'N/A'}
+                          <br />
+                          Ledger entry hash: {entry.ledgerEntryHash ?? 'N/A'}
+                        </div>
+                        <pre className="params timeline-payload">
+                          {JSON.stringify(entry.payload, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </article>
 
         <article className="card stack">
@@ -298,6 +496,9 @@ export function ConsoleSystemPage({
             <Link className="button ghost link-button" href="/help">
               Help hub
             </Link>
+            <Link className="button ghost link-button" href="/console/settings">
+              Settings
+            </Link>
             {canVerifyLedger ? (
               <Link className="button ghost link-button" href="/console/ledger">
                 Ledger verifier
@@ -306,6 +507,11 @@ export function ConsoleSystemPage({
             {canManagePolicies ? (
               <Link className="button ghost link-button" href="/console/policies">
                 Policies
+              </Link>
+            ) : null}
+            {canManageOrganization ? (
+              <Link className="button ghost link-button" href="/console/users">
+                Users
               </Link>
             ) : null}
             {canManageIntegrations ? (
@@ -348,7 +554,14 @@ export function ConsoleSystemPage({
             </div>
             <div className="console-detail-item">
               <span>Console access</span>
-              <strong>Local self-host operator context, separate from approval passkeys.</strong>
+              <strong>Local authenticated console session, separate from approval passkeys.</strong>
+            </div>
+            <div className="console-detail-item">
+              <span>User management</span>
+              <strong>
+                Owners and admins can add managed local users who can sign in and register
+                approval passkeys.
+              </strong>
             </div>
           </div>
 

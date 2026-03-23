@@ -49,6 +49,14 @@ approve it in the UI, and then prints the result in the terminal.
 - API docs: [http://localhost:4000/docs](http://localhost:4000/docs)
 - Health: [http://localhost:4000/health/ready](http://localhost:4000/health/ready)
 
+Important security note:
+
+- approval pages can be shared with intended human approvers because they still require the
+  secure approval link plus passkey authentication
+- the console now requires a local authenticated session
+- protect the console with strong owner credentials from first launch onward
+- approval auth and console auth remain separate on purpose
+
 ### Docker self-host flow
 
 ```bash
@@ -74,10 +82,16 @@ parts that make the product genuinely useful in real deployments:
 - exchange-token continuation path for machine clients
 - machine auth, service accounts, and organization API keys
 - audit trail, immutable log, and ledger verification
-- operator console usable in open-core mode
+- operator console for local or externally protected admin access
 - CLI, SDK, and runnable examples
 - rate limiting, health checks, readiness checks, metrics, and basic observability
 - Docker-based self-host flow and self-host docs
+
+Current open-core access model:
+
+- approval auth is real and separate: secure approval link plus passkey
+- console auth is built in for local self-host use
+- multi-user lifecycle, profile/settings, and broader RBAC hardening are still being added
 
 ## CLI Quickstart
 

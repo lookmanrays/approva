@@ -10,11 +10,11 @@ function normalizeConsolePath(path?: string | null) {
 }
 
 function redirectToLocalConsole(request: Request) {
-  return NextResponse.redirect(new URL('/console/approvals', request.url));
+  return NextResponse.redirect(new URL('/sign-in', request.url));
 }
 
 // Preserve the old auth export surface so existing UI routes keep working while
-// the self-host console redirects directly to the local operator view.
+// local console auth now lives behind the self-host sign-in page.
 export const handlers = {
   GET: async (request: Request) => redirectToLocalConsole(request),
   POST: async (request: Request) => redirectToLocalConsole(request),
@@ -28,9 +28,9 @@ export async function signIn(
   _provider?: string,
   options?: LocalDashboardRedirectOptions,
 ) {
-  redirect(normalizeConsolePath(options?.redirectTo));
+  redirect(`/sign-in?callbackUrl=${encodeURIComponent(normalizeConsolePath(options?.redirectTo))}`);
 }
 
 export async function signOut(options?: LocalDashboardRedirectOptions) {
-  redirect(normalizeConsolePath(options?.redirectTo));
+  redirect(`/sign-in?callbackUrl=${encodeURIComponent(normalizeConsolePath(options?.redirectTo))}`);
 }

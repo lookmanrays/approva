@@ -17,13 +17,10 @@ import type {
 import type {
   AuthenticationResponseJSON,
   AuthenticatorTransportFuture,
-  RegistrationResponseJSON,
 } from '@simplewebauthn/server';
 import {
   generateAuthenticationOptions,
-  generateRegistrationOptions,
   verifyAuthenticationResponse,
-  verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -67,47 +64,10 @@ export class AuthService {
       email: string;
     },
   ): Promise<PasskeyRegistrationStartResponse> {
-    await this.assertApprovalScopedPasskeyAccess(
-      input.requestId,
-      input.token,
-      input.email,
+    void input;
+    throw new ForbiddenException(
+      'Passkey enrollment from approval links is disabled. Sign in to the console and use Settings to manage approval passkeys.',
     );
-    const approverUser = await this.getActiveApproverUserByEmail(input.email, {
-      credentials: true,
-    });
-
-    const options = await generateRegistrationOptions({
-      rpName: this.getPasskeyRpName(),
-      rpID: this.getPasskeyRpId(),
-      userName: approverUser.email,
-      userID: new TextEncoder().encode(approverUser.id),
-      userDisplayName: approverUser.displayName,
-      attestationType: 'none',
-      excludeCredentials: approverUser.credentials.map((credential) => ({
-        id: credential.credentialId,
-        transports: this.parseCredentialTransports(credential.transportsJson),
-      })),
-      authenticatorSelection: {
-        residentKey: 'required',
-        userVerification: 'preferred',
-      },
-      preferredAuthenticatorType: 'localDevice',
-    });
-
-    await this.prisma.approverUser.update({
-      where: {
-        id: approverUser.id,
-      },
-      data: {
-        registrationChallenge: options.challenge,
-        registrationChallengeExpiresAt: this.buildChallengeExpiry(),
-      },
-    });
-
-    return {
-      user: toApproverUser(approverUser),
-      options: options as unknown as Record<string, unknown>,
-    };
   }
 
   async finishPasskeyRegistration(input: {
@@ -116,77 +76,10 @@ export class AuthService {
     email: string;
     response: Record<string, unknown>;
   }): Promise<PasskeyRegistrationFinishResponse> {
-    await this.assertApprovalScopedPasskeyAccess(
-      input.requestId,
-      input.token,
-      input.email,
+    void input;
+    throw new ForbiddenException(
+      'Passkey enrollment from approval links is disabled. Sign in to the console and use Settings to manage approval passkeys.',
     );
-    const approverUser = await this.getActiveApproverUserByEmail(input.email);
-
-    if (
-      !approverUser.registrationChallenge ||
-      !approverUser.registrationChallengeExpiresAt ||
-      approverUser.registrationChallengeExpiresAt.getTime() <= Date.now()
-    ) {
-      throw new BadRequestException('Passkey registration challenge is missing or expired.');
-    }
-
-    const verification = await verifyRegistrationResponse({
-      response: input.response as unknown as RegistrationResponseJSON,
-      expectedChallenge: approverUser.registrationChallenge,
-      expectedOrigin: this.getPasskeyExpectedOrigins(),
-      expectedRPID: this.getPasskeyExpectedRpIds(),
-      requireUserVerification: true,
-    });
-
-    if (!verification.verified || !verification.registrationInfo) {
-      throw new BadRequestException('Passkey registration could not be verified.');
-    }
-
-    const {
-      credential,
-      credentialDeviceType,
-      credentialBackedUp,
-    } = verification.registrationInfo;
-
-    const existingCredential = await this.prisma.webauthnCredential.findUnique({
-      where: {
-        credentialId: credential.id,
-      },
-    });
-
-    if (existingCredential) {
-      throw new ConflictException('This passkey is already registered.');
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.webauthnCredential.create({
-        data: {
-          approverUserId: approverUser.id,
-          credentialId: credential.id,
-          publicKey: Buffer.from(credential.publicKey),
-          counter: credential.counter,
-          transportsJson: credential.transports ?? undefined,
-          deviceType: credentialDeviceType,
-          backedUp: credentialBackedUp,
-        },
-      });
-
-      await tx.approverUser.update({
-        where: {
-          id: approverUser.id,
-        },
-        data: {
-          registrationChallenge: null,
-          registrationChallengeExpiresAt: null,
-        },
-      });
-    });
-
-    return {
-      user: toApproverUser(approverUser),
-      credentialId: credential.id,
-    };
   }
 
   async startPasskeyAuthentication(
@@ -196,14 +89,18 @@ export class AuthService {
       email: string;
     },
   ): Promise<PasskeyAuthenticationStartResponse> {
-    await this.assertApprovalScopedPasskeyAccess(
+    const approvalContext = await this.assertApprovalScopedPasskeyAccess(
       input.requestId,
       input.token,
       input.email,
     );
-    const approverUser = await this.getActiveApproverUserByEmail(input.email, {
-      credentials: true,
-    });
+    const approverUser = await this.getScopedApproverUser(
+      approvalContext.organizationId,
+      input.email,
+      {
+        credentials: true,
+      },
+    );
 
     if (approverUser.credentials.length === 0) {
       throw new ConflictException('No passkey is registered for this approver yet.');
@@ -243,14 +140,18 @@ export class AuthService {
     },
     response: Response,
   ): Promise<PasskeyAuthenticationFinishResponse> {
-    await this.assertApprovalScopedPasskeyAccess(
+    const approvalContext = await this.assertApprovalScopedPasskeyAccess(
       input.requestId,
       input.token,
       input.email,
     );
-    const approverUser = await this.getActiveApproverUserByEmail(input.email, {
-      credentials: true,
-    });
+    const approverUser = await this.getScopedApproverUser(
+      approvalContext.organizationId,
+      input.email,
+      {
+        credentials: true,
+      },
+    );
 
     if (
       !approverUser.authenticationChallenge ||
@@ -453,15 +354,50 @@ export class AuthService {
     };
   }
 
-  private async getActiveApproverUserByEmail(
+  private async getScopedApproverUser(
+    organizationId: string,
     email: string,
     include?: {
       credentials?: boolean;
     },
   ) {
-    const approverUser = await this.prisma.approverUser.findUnique({
+    const normalizedEmail = this.normalizeEmail(email);
+    const localUser = await this.prisma.organizationMember.findFirst({
       where: {
-        email: this.normalizeEmail(email),
+        organizationId,
+        user: {
+          email: normalizedEmail,
+          disabledAt: null,
+        },
+      },
+      select: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!localUser?.user.email) {
+      throw new ForbiddenException(
+        'Approval passkey authentication is only available for users managed in this organization.',
+      );
+    }
+
+    const approverUser = await this.prisma.approverUser.upsert({
+      where: {
+        email: normalizedEmail,
+      },
+      update: {
+        displayName: localUser.user.name ?? normalizedEmail,
+        status: 'active',
+      },
+      create: {
+        email: normalizedEmail,
+        displayName: localUser.user.name ?? normalizedEmail,
+        status: 'active',
       },
       include: {
         credentials: include?.credentials ?? false,
@@ -518,6 +454,11 @@ export class AuthService {
     if (!authorization.authorized) {
       throw new ForbiddenException(authorization.message);
     }
+
+    return {
+      organizationId: approvalRequest.organizationId,
+      approverEmail: email,
+    };
   }
 
   private assertValidApprovalAccessToken(expectedTokenHash: string, token: string) {

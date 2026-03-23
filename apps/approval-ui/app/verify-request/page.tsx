@@ -7,12 +7,12 @@ export default function VerifyRequestPage() {
         <article className="card stack">
           <div>
             <span className="eyebrow">Approva</span>
-            <h1 className="auth-title">Open the console directly</h1>
+            <h1 className="auth-title">Open the console sign-in</h1>
           </div>
 
           <p>
-            Open the console directly for local operation, and use the approval link plus passkey
-            flow for approval decisions.
+            Use the local console sign-in for operator access, and use the approval link plus
+            passkey flow for approval decisions.
           </p>
 
           <div className="empty">
@@ -20,8 +20,8 @@ export default function VerifyRequestPage() {
           </div>
 
           <div className="actions">
-            <Link className="button primary link-button" href="/console/approvals">
-              Go to console
+            <Link className="button primary link-button" href="/sign-in">
+              Go to console sign-in
             </Link>
             <Link className="button ghost link-button" href="/">
               Back to landing

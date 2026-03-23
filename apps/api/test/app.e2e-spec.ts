@@ -24,6 +24,7 @@ describe('Approva E2E', () => {
     process.env.APPROVAL_ACCESS_TOKEN_SECRET = 'test-approval-access-secret';
     process.env.WEBHOOK_SIGNING_SECRET = 'test-webhook-signing-secret';
     process.env.CAPABILITY_TTL_MINUTES = '30';
+    process.env.APPROVA_RATE_LIMIT_ENABLED = 'false';
     process.env.APPROVA_INTEGRATION_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 

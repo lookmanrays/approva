@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import type { ApprovalRequest, ApprovalRequestResponse } from '@approva/shared';
 import { getApprovalClient } from '@/lib/api';
@@ -23,6 +24,40 @@ function formatTimestamp(value?: string | null) {
   }
 
   return new Date(value).toLocaleString();
+}
+
+function readAuthContextString(
+  value: Record<string, unknown> | null | undefined,
+  key: string,
+) {
+  const candidate = value?.[key];
+  return typeof candidate === 'string' && candidate.trim().length > 0
+    ? candidate.trim()
+    : null;
+}
+
+function getAuthorizationGuidance(
+  code: string | null | undefined,
+  hasAuthenticatedSession: boolean,
+) {
+  switch (code) {
+    case 'authorized':
+      return 'This local user satisfies the policy role requirements for this request.';
+    case 'not_authenticated':
+      return hasAuthenticatedSession
+        ? 'Your approval session is missing role information. Refresh the page or authenticate again.'
+        : 'Authenticate with an existing passkey to check whether this local user can decide the request.';
+    case 'approver_email_missing':
+      return 'The current passkey session is missing the local user email. Authenticate again.';
+    case 'no_allowed_roles_configured':
+      return 'The matched policy does not allow any human approver roles, so this request cannot be manually approved.';
+    case 'not_member_of_organization':
+      return 'This passkey belongs to a user that is not an active member of this organization.';
+    case 'role_not_allowed':
+      return 'This local user is active, but their organization role is not allowed to decide this request.';
+    default:
+      return null;
+  }
 }
 
 function getFriendlyRequestLoadError(message: string) {
@@ -55,7 +90,11 @@ function getFriendlyRequestLoadError(message: string) {
 
 function getFriendlyPasskeyError(message: string) {
   if (message.includes('No passkey is registered')) {
-    return 'No passkey is registered for this approver yet. Register one first, then authenticate.';
+    return 'No passkey is registered for this local user yet. Sign in to the Approva Console and add one in Settings, then return here to authenticate.';
+  }
+
+  if (message.includes('Passkey enrollment from approval links is disabled')) {
+    return 'Passkey enrollment no longer happens on approval links. Sign in to the Approva Console and add the passkey under Settings first.';
   }
 
   if (message.includes('could not be verified')) {
@@ -145,7 +184,6 @@ export function ApprovalRequestPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
-  const [registering, setRegistering] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -193,37 +231,6 @@ export function ApprovalRequestPage({
     };
   }, [approvalAccessToken, refreshNonce, requestId]);
 
-  const handleRegisterPasskey = async () => {
-    setRegistering(true);
-    setError(null);
-    setAuthMessage(null);
-
-    try {
-      if (!approvalAccessToken) {
-        throw new Error('Missing approval access token in URL.');
-      }
-
-      const registration = await auth.register('passkey', {
-        requestId,
-        token: approvalAccessToken,
-        email: approverEmail,
-      });
-      setAuthMessage(
-        `Passkey registered for ${registration.user.email}. Authenticate with that passkey to continue.`,
-      );
-    } catch (registrationError) {
-      setError(
-        getFriendlyPasskeyError(
-          registrationError instanceof Error
-            ? registrationError.message
-            : 'Failed to register passkey.',
-        ),
-      );
-    } finally {
-      setRegistering(false);
-    }
-  };
-
   const handleAuthenticate = async () => {
     setAuthenticating(true);
     setError(null);
@@ -241,7 +248,7 @@ export function ApprovalRequestPage({
       });
 
       setAuthMessage(
-        `Passkey authenticated for ${authResult.subject}. You can now approve or reject this request.`,
+        `Passkey authenticated for ${authResult.subject}. Review the user and role summary below before deciding.`,
       );
       setRefreshNonce((current) => current + 1);
     } catch (authError) {
@@ -321,6 +328,7 @@ export function ApprovalRequestPage({
 
   const request = result?.request;
   const isPending = request?.status === 'pending';
+  const isTerminal = Boolean(request && request.status !== 'pending');
   const hasAuthenticatedSession = auth.session?.authenticated === true;
   const decisionAuthorization = result?.approverAuthorization ?? null;
   const isUnauthorizedForDecision =
@@ -332,17 +340,35 @@ export function ApprovalRequestPage({
   const requestState = request ? getRequestStateCallout(request) : null;
   const latestDecisionEmail =
     (request?.latestDecision?.authContext?.approverEmail as string | undefined) ?? null;
+  const latestDecisionRole = readAuthContextString(
+    (request?.latestDecision?.authContext as Record<string, unknown> | null | undefined) ?? null,
+    'approverRole',
+  );
+  const authenticatedApprover = auth.session?.user ?? null;
+  const approverSessionExpiresAt = auth.session?.expiresAt ?? null;
+  const authenticatedRole = decisionAuthorization?.approverRole ?? null;
+  const authorizationGuidance = getAuthorizationGuidance(
+    decisionAuthorization?.code,
+    hasAuthenticatedSession,
+  );
 
   return (
-    <main className="shell">
-      <section className="hero">
+    <main className="shell approval-shell">
+      <section className="approval-header">
         <span className="eyebrow">Human Approval</span>
-        <h1>Review before automation crosses the line.</h1>
-        <p>
-          The approval access token in the URL scopes which request can be viewed.
-          A separate passkey-authenticated approver session is required before a
-          human can approve or reject it.
-        </p>
+        <div className="approval-header-copy">
+          <h1>Review and record a human decision.</h1>
+          <p>
+            The approval link identifies the request. A separate passkey-authenticated session
+            identifies the local user making the decision.
+          </p>
+        </div>
+        {request ? (
+          <div className="approval-header-meta">
+            <span className={`status ${request.status}`}>{request.status}</span>
+            <span className={`status ${request.riskLevel}`}>{request.riskLevel}</span>
+          </div>
+        ) : null}
       </section>
 
       {loading ? (
@@ -356,32 +382,37 @@ export function ApprovalRequestPage({
         </section>
       ) : request ? (
         <section className="grid two">
-          <article className="card summary">
-            <div className="stack">
-              <div className="label">Action summary</div>
-              <h2>{request.action}</h2>
-              <p>
-                Resource <span className="mono">{request.resource.type}</span> /
-                <span className="mono"> {request.resource.id}</span>
-              </p>
+          <article className="card summary approval-summary-card">
+            <div className="approval-summary-header">
+              <div className="stack">
+                <div className="label">Approval request</div>
+                <h2>{request.action}</h2>
+                <p>
+                  Resource <span className="mono">{request.resource.type}</span> /
+                  <span className="mono"> {request.resource.id}</span>
+                </p>
+              </div>
+              <div className="approval-summary-tags">
+                <span className={`status ${request.status}`}>{request.status}</span>
+                <span className={`status ${request.riskLevel}`}>{request.riskLevel}</span>
+              </div>
             </div>
 
-            <dl className="meta-grid">
-              <div className="meta">
-                <dt>Status</dt>
-                <dd>
-                  <span className={`status ${request.status}`}>{request.status}</span>
-                </dd>
-              </div>
-              <div className="meta">
-                <dt>Risk level</dt>
-                <dd>
-                  <span className={`status ${request.riskLevel}`}>{request.riskLevel}</span>
-                </dd>
-              </div>
+            <dl className="meta-grid approval-meta-grid">
               <div className="meta">
                 <dt>Request id</dt>
                 <dd className="mono">{request.id}</dd>
+              </div>
+              <div className="meta">
+                <dt>Created</dt>
+                <dd>{formatTimestamp(request.createdAt)}</dd>
+              </div>
+              <div className="meta">
+                <dt>Requested by</dt>
+                <dd className="mono">
+                  {request.requestedBy.system}
+                  {request.requestedBy.actorId ? ` · ${request.requestedBy.actorId}` : ''}
+                </dd>
               </div>
               <div className="meta">
                 <dt>Expires at</dt>
@@ -396,34 +427,39 @@ export function ApprovalRequestPage({
               </div>
             ) : null}
 
-            <div className="stack">
+            <div className="approval-section">
               <div className="label">Policy result</div>
-              <p>
-                Decision <span className="mono">{request.policyResult.decision}</span> with
-                matched rules{' '}
-                <span className="mono">
-                  {request.policyResult.matchedRules.length > 0
-                    ? request.policyResult.matchedRules.join(', ')
-                    : 'none'}
-                </span>
-              </p>
-              <p>
-                Allowed approver roles{' '}
-                <span className="mono">
-                  {request.policyResult.approverRoles?.length
-                    ? request.policyResult.approverRoles.join(', ')
-                    : 'none recorded'}
-                </span>
-              </p>
+              <dl className="approval-kv-list">
+                <div>
+                  <dt>Decision</dt>
+                  <dd className="mono">{request.policyResult.decision}</dd>
+                </div>
+                <div>
+                  <dt>Matched rules</dt>
+                  <dd className="mono-wrap">
+                    {request.policyResult.matchedRules.length > 0
+                      ? request.policyResult.matchedRules.join(', ')
+                      : 'none'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Allowed roles</dt>
+                  <dd className="mono">
+                    {request.policyResult.approverRoles?.length
+                      ? request.policyResult.approverRoles.join(', ')
+                      : 'none recorded'}
+                  </dd>
+                </div>
+              </dl>
             </div>
 
-            <div className="stack">
+            <div className="approval-section">
               <div className="label">Params preview</div>
               <pre className="params">{JSON.stringify(request.params, null, 2)}</pre>
             </div>
 
             {request.latestDecision ? (
-              <div className="empty stack">
+              <div className="empty stack approval-decision-record">
                 <div className="label">Decision record</div>
                 <div>
                   <strong>{request.latestDecision.decision}</strong>{' '}
@@ -440,13 +476,25 @@ export function ApprovalRequestPage({
                       'unknown approver'}
                   </span>
                 </div>
+                {latestDecisionEmail ? (
+                  <div>
+                    Local user{' '}
+                    <span className="mono">{latestDecisionEmail}</span>
+                  </div>
+                ) : null}
+                {latestDecisionRole ? (
+                  <div>
+                    Role used{' '}
+                    <span className="mono">{latestDecisionRole}</span>
+                  </div>
+                ) : null}
                 <div>Recorded at <span className="mono">{formatTimestamp(request.latestDecision.createdAt)}</span></div>
                 {request.latestDecision.reason ? <div>{request.latestDecision.reason}</div> : null}
               </div>
             ) : null}
 
             {result.capability ? (
-              <div className="stack">
+              <div className="approval-section">
                 <div className="label">Issued capability</div>
                 <div className="empty stack">
                   <div>
@@ -461,16 +509,26 @@ export function ApprovalRequestPage({
             ) : null}
           </article>
 
-          <aside className="card panel stack">
+          <aside className="card panel stack approval-panel">
             <div>
-              <div className="label">Approver authentication</div>
-              <h2>Approve with passkey</h2>
+              <div className="label">Human identity and decision</div>
+              <h2>{isPending ? 'Authenticate and decide' : 'Decision complete'}</h2>
             </div>
-            <p>
-              The secure approval URL identifies the request. Passkey authentication
-              identifies the human approver and creates a secure, httpOnly approver
-              session cookie on the API domain.
-            </p>
+            {isPending ? (
+              <p>
+                The secure approval link scopes the request. Passkey authentication identifies the
+                managed local user and creates a secure, httpOnly approver session on the API
+                domain.
+              </p>
+            ) : (
+              <div className="notice success approval-readonly-state">
+                <strong>No further action is available on this request.</strong>
+                <div>
+                  The recorded decision above is final for this approval link. This panel is now
+                  read-only and kept only for identity context.
+                </div>
+              </div>
+            )}
 
             <div className="session-summary">
               <div className="session-line">
@@ -479,80 +537,125 @@ export function ApprovalRequestPage({
                   {hasAuthenticatedSession ? 'passkey-authenticated' : 'not authenticated'}
                 </span>
               </div>
-              {hasAuthenticatedSession && auth.session?.user ? (
+              {hasAuthenticatedSession && authenticatedApprover ? (
                 <div className="session-details stack">
                   <div>
-                    Current approver{' '}
+                    Local user{' '}
                     <span className="mono">
-                      {auth.session.user.displayName} ({auth.session.user.email})
+                      {authenticatedApprover.displayName} ({authenticatedApprover.email})
                     </span>
                   </div>
                   <div>
                     Session expires at{' '}
-                    <span className="mono">{formatTimestamp(auth.session.expiresAt)}</span>
+                    <span className="mono">{formatTimestamp(approverSessionExpiresAt)}</span>
                   </div>
                   {decisionAuthorization ? (
                     <div>
-                      Authorization status{' '}
+                      Decision eligibility{' '}
                       <span
                         className={`status ${
                           decisionAuthorization.authorized ? 'approved' : 'rejected'
                         }`}
                       >
-                        {decisionAuthorization.authorized ? 'authorized' : 'not authorized'}
+                        {decisionAuthorization.authorized ? 'eligible' : 'not eligible'}
                       </span>
                     </div>
                   ) : null}
+                  <div>
+                    Role for this request{' '}
+                    <span className="mono">
+                      {authenticatedRole ?? 'no active allowed role'}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <div className="helper">
-                  No active passkey session. Register a passkey if needed, then authenticate before making a decision.
+                  No active passkey session. Authenticate with an existing passkey to make a
+                  decision. First-time passkey enrollment is intentionally not offered on this
+                  approval page. Add passkeys from{' '}
+                  <Link href="/console/settings">Console Settings</Link> first.
                 </div>
               )}
             </div>
 
-            {isUnauthorizedForDecision && decisionAuthorization ? (
-              <div className="notice warning">
-                <strong>You are not authorized to approve this request.</strong>
-                <div>{decisionAuthorization.message}</div>
+            {decisionAuthorization ? (
+              <div className={`notice ${decisionAuthorization.authorized ? 'success' : 'warning'}`}>
+                <strong>
+                  {decisionAuthorization.authorized
+                    ? 'This local user can decide the request.'
+                    : 'This local user cannot decide the request.'}
+                </strong>
+                <div>{authorizationGuidance ?? decisionAuthorization.message}</div>
                 <div>
-                  Allowed roles:{' '}
+                  Policy allows{' '}
                   <span className="mono">
                     {decisionAuthorization.allowedRoles.length > 0
                       ? decisionAuthorization.allowedRoles.join(', ')
-                      : 'none configured'}
+                      : 'no human roles'}
                   </span>
                 </div>
                 {decisionAuthorization.approverRole ? (
                   <div>
-                    Your current organization role:{' '}
+                    Current organization role{' '}
                     <span className="mono">{decisionAuthorization.approverRole}</span>
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            <label className="field">
-              <span>Approver email</span>
-              <input
-                value={approverEmail}
-                onChange={(event) => setApproverEmail(event.target.value)}
-              />
-            </label>
+            {isPending ? (
+              <>
+                {!hasAuthenticatedSession ? (
+                  <label className="field">
+                    <span>Approver email</span>
+                    <input
+                      value={approverEmail}
+                      onChange={(event) => setApproverEmail(event.target.value)}
+                    />
+                    <span className="helper">
+                      This must match an active local user that already has a passkey in Console
+                      Settings.
+                    </span>
+                  </label>
+                ) : (
+                  <div className="console-detail-item">
+                    <span>Authenticated user</span>
+                    <strong>
+                      {authenticatedApprover?.displayName ?? 'Unknown approver'} (
+                      {authenticatedApprover?.email ?? 'no email'})
+                    </strong>
+                    <div>
+                      To switch users, log out below and authenticate again with that user&apos;s
+                      passkey.
+                    </div>
+                  </div>
+                )}
 
-            <label className="field">
-              <span>Decision note</span>
-              <textarea
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Optional context for the audit record."
-              />
-            </label>
+                <label className="field">
+                  <span>Decision note</span>
+                  <textarea
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Optional context for the audit record."
+                  />
+                </label>
 
-            <div className="helper">
-              Approval token and passkey session are separate layers. The token scopes
-              request access; the passkey proves who is making the decision.
-            </div>
+                <div className="helper">
+                  The link scopes access to the request. The passkey proves who is making the
+                  decision.
+                </div>
+                <div className="helper">
+                  Need to add or replace a passkey for this user? Sign in to{' '}
+                  <Link href="/console/settings">Console Settings</Link>, add the passkey there,
+                  then return to this approval link and authenticate.
+                </div>
+              </>
+            ) : (
+              <div className="helper approval-terminal-helper">
+                This approver session can still be cleared, but the request itself can no longer be
+                approved or rejected again from this page.
+              </div>
+            )}
 
             {auth.sessionLoading ? (
               <div className="empty">Checking existing approver session...</div>
@@ -561,55 +664,79 @@ export function ApprovalRequestPage({
             {authMessage ? <div className="notice success">{authMessage}</div> : null}
             {error && request ? <div className="error">{error}</div> : null}
 
-            <div className="actions">
-              <button
-                className="button secondary"
-                disabled={registering || authenticating || submitting || loggingOut}
-                onClick={() => void handleRegisterPasskey()}
-                type="button"
-              >
-                {registering ? 'Registering...' : 'Register passkey'}
-              </button>
-              <button
-                className="button primary"
-                disabled={auth.sessionLoading || authenticating || registering || submitting || loggingOut}
-                onClick={() => void handleAuthenticate()}
-                type="button"
-              >
-                {authenticating ? 'Authenticating...' : 'Authenticate with passkey'}
-              </button>
-              <button
-                className="button ghost"
-                disabled={auth.sessionLoading || loggingOut || !hasAuthenticatedSession}
-                onClick={() => void handleLogout()}
-                type="button"
-              >
-                {loggingOut ? 'Clearing session...' : 'Logout'}
-              </button>
-            </div>
+            {isPending && !hasAuthenticatedSession ? (
+              <div className="actions">
+                <button
+                  className="button primary"
+                  disabled={
+                    auth.sessionLoading ||
+                    authenticating ||
+                    submitting
+                  }
+                  onClick={() => void handleAuthenticate()}
+                  type="button"
+                >
+                  {authenticating ? 'Authenticating...' : 'Authenticate with passkey'}
+                </button>
+              </div>
+            ) : null}
 
-            <div className="actions">
-              <button
-                className="button primary"
-                disabled={
-                  !isPending || submitting || !hasAuthenticatedSession || isUnauthorizedForDecision
-                }
-                onClick={() => void handleDecision('approve')}
-                type="button"
-              >
-                {submitting ? 'Submitting...' : 'Approve'}
-              </button>
-              <button
-                className="button secondary"
-                disabled={
-                  !isPending || submitting || !hasAuthenticatedSession || isUnauthorizedForDecision
-                }
-                onClick={() => void handleDecision('reject')}
-                type="button"
-              >
-                Reject
-              </button>
-            </div>
+            {isPending && hasAuthenticatedSession ? (
+              <div className="actions">
+                <button
+                  className="button ghost"
+                  disabled={auth.sessionLoading || loggingOut}
+                  onClick={() => void handleLogout()}
+                  type="button"
+                >
+                  {loggingOut ? 'Clearing session...' : 'Logout'}
+                </button>
+              </div>
+            ) : null}
+
+            {!isPending && hasAuthenticatedSession ? (
+              <div className="actions actions-compact">
+                <button
+                  className="button ghost button-compact"
+                  disabled={auth.sessionLoading || loggingOut}
+                  onClick={() => void handleLogout()}
+                  type="button"
+                >
+                  {loggingOut ? 'Clearing session...' : 'Logout'}
+                </button>
+              </div>
+            ) : null}
+
+            {isPending ? (
+              <div className="actions approval-decision-actions">
+                <button
+                  className="button primary"
+                  disabled={
+                    !isPending ||
+                    submitting ||
+                    !hasAuthenticatedSession ||
+                    isUnauthorizedForDecision
+                  }
+                  onClick={() => void handleDecision('approve')}
+                  type="button"
+                >
+                  {submitting ? 'Submitting...' : 'Approve'}
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={
+                    !isPending ||
+                    submitting ||
+                    !hasAuthenticatedSession ||
+                    isUnauthorizedForDecision
+                  }
+                  onClick={() => void handleDecision('reject')}
+                  type="button"
+                >
+                  Reject
+                </button>
+              </div>
+            ) : null}
           </aside>
         </section>
       ) : null}

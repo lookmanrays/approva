@@ -11,6 +11,7 @@ import { ApprovalRequestsModule } from './modules/approval-requests/approval-req
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CapabilityModule } from './modules/capability/capability.module';
+import { ConsoleAuthModule } from './modules/console-auth/console-auth.module';
 import { DemoAiDeployModule } from './modules/demo-ai-deploy/demo-ai-deploy.module';
 import { ImmutableLogModule } from './modules/immutable-log/immutable-log.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
@@ -33,6 +34,7 @@ import { WebhookModule } from './modules/webhook/webhook.module';
       envFilePath: ['.env', '../../.env'],
       validate: validateApprovaApiEnvironment,
     }),
+    ConsoleAuthModule,
     ObservabilityModule,
     PrismaModule,
     AuthModule,

@@ -34,8 +34,8 @@ export class AuthController {
 
   @Post('passkeys/register/start')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Start passkey registration for an approver user' })
-  @ApiOkResponse({ description: 'Passkey registration options.' })
+  @ApiOperation({ summary: 'Approval-link passkey registration is disabled in open-core' })
+  @ApiOkResponse({ description: 'Returns an error directing operators to Console Settings.' })
   startRegistration(
     @Body() input: PasskeyRegistrationStartDto,
   ): Promise<PasskeyRegistrationStartResponse> {
@@ -44,8 +44,8 @@ export class AuthController {
 
   @Post('passkeys/register/finish')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Finish passkey registration for an approver user' })
-  @ApiOkResponse({ description: 'Passkey registration verification result.' })
+  @ApiOperation({ summary: 'Approval-link passkey registration is disabled in open-core' })
+  @ApiOkResponse({ description: 'Returns an error directing operators to Console Settings.' })
   finishRegistration(
     @Body() input: PasskeyRegistrationFinishDto,
   ): Promise<PasskeyRegistrationFinishResponse> {

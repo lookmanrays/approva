@@ -419,12 +419,31 @@ model ApproverSession {
 }
 
 model User {
-  id          String               @id @default(cuid())
-  name        String?
-  email       String?              @unique
-  memberships OrganizationMember[]
+  id              String               @id @default(cuid())
+  name            String?
+  email           String?              @unique
+  passwordHash    String?              @map("password_hash")
+  passwordSetAt   DateTime?            @map("password_set_at")
+  disabledAt      DateTime?            @map("disabled_at")
+  memberships     OrganizationMember[]
+  consoleSessions ConsoleSession[]
 
+  @@index([disabledAt], map: "users_disabled_at_idx")
   @@map("users")
+}
+
+model ConsoleSession {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  sessionTokenHash String    @unique @map("session_token_hash") @db.Char(64)
+  expiresAt        DateTime  @map("expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "console_sessions_user_id_created_at_idx")
+  @@index([expiresAt], map: "console_sessions_expires_at_idx")
+  @@map("console_sessions")
 }
 
 model ServiceAccount {

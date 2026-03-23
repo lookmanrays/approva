@@ -349,7 +349,7 @@ export function ConsoleApprovalDetailPage({
         </div>
       </section>
 
-      <section className="console-section-grid">
+      <section className="console-approval-layout">
         <article className="card stack">
           <div>
             <div className="label">Request context</div>
@@ -402,14 +402,14 @@ export function ConsoleApprovalDetailPage({
           </div>
         </article>
 
-        <article className="card stack">
-          <div>
-            <div className="label">Decision and auth</div>
-            <h2>Human decision summary</h2>
-          </div>
+        <div className="console-approval-sidebar">
+          <article className="card stack">
+            <div>
+              <div className="label">Decision and auth</div>
+              <h2>Human decision summary</h2>
+            </div>
 
-          {request.latestDecision ? (
-            <>
+            {request.latestDecision ? (
               <div className="console-detail-list">
                 <div className="console-detail-item">
                   <span>Decision</span>
@@ -429,23 +429,23 @@ export function ConsoleApprovalDetailPage({
                 </div>
                 <div className="console-detail-item">
                   <span>Auth context</span>
-                  <strong className="mono-wrap">{getCompactAuthContext(request.latestDecision)}</strong>
+                  <strong className="mono-wrap">
+                    {getCompactAuthContext(request.latestDecision)}
+                  </strong>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="empty">No human decision is recorded for this request.</div>
-          )}
-        </article>
+            ) : (
+              <div className="empty">No human decision is recorded for this request.</div>
+            )}
+          </article>
 
-        <article className="card stack">
-          <div>
-            <div className="label">Capability</div>
-            <h2>Scoped permission summary</h2>
-          </div>
+          <article className="card stack">
+            <div>
+              <div className="label">Capability</div>
+              <h2>Scoped permission summary</h2>
+            </div>
 
-          {request.capability ? (
-            <>
+            {request.capability ? (
               <div className="console-detail-list">
                 <div className="console-detail-item">
                   <span>State</span>
@@ -478,43 +478,45 @@ export function ConsoleApprovalDetailPage({
                   <strong className="mono-wrap">{request.capability.paramsHash}</strong>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="empty">No capability has been issued for this request.</div>
-          )}
-        </article>
+            ) : (
+              <div className="empty">No capability has been issued for this request.</div>
+            )}
+          </article>
 
-        <article className="card stack">
-          <div>
-            <div className="label">Ledger</div>
-            <h2>Chain summary</h2>
-          </div>
+          <article className="card stack">
+            <div>
+              <div className="label">Ledger</div>
+              <h2>Chain summary</h2>
+            </div>
 
-          <div className="console-detail-list">
-            <div className="console-detail-item">
-              <span>Ledger entries</span>
-              <strong>{detail.ledgerSummary.totalEntries}</strong>
+            <div className="console-detail-list">
+              <div className="console-detail-item">
+                <span>Ledger entries</span>
+                <strong>{detail.ledgerSummary.totalEntries}</strong>
+              </div>
+              <div className="console-detail-item">
+                <span>First sequence</span>
+                <strong>{detail.ledgerSummary.firstSequence ?? 'N/A'}</strong>
+              </div>
+              <div className="console-detail-item">
+                <span>Last sequence</span>
+                <strong>{detail.ledgerSummary.lastSequence ?? 'N/A'}</strong>
+              </div>
+              <div className="console-detail-item">
+                <span>Latest entry hash</span>
+                <strong className="mono-wrap">
+                  {detail.ledgerSummary.latestEntryHash ?? 'N/A'}
+                </strong>
+              </div>
             </div>
-            <div className="console-detail-item">
-              <span>First sequence</span>
-              <strong>{detail.ledgerSummary.firstSequence ?? 'N/A'}</strong>
-            </div>
-            <div className="console-detail-item">
-              <span>Last sequence</span>
-              <strong>{detail.ledgerSummary.lastSequence ?? 'N/A'}</strong>
-            </div>
-            <div className="console-detail-item">
-              <span>Latest entry hash</span>
-              <strong className="mono-wrap">{detail.ledgerSummary.latestEntryHash ?? 'N/A'}</strong>
-            </div>
-          </div>
 
-          <div className="actions">
-            <Link className="button ghost link-button" href={ledgerLink}>
-              Open ledger verifier
-            </Link>
-          </div>
-        </article>
+            <div className="actions">
+              <Link className="button ghost link-button" href={ledgerLink}>
+                Open ledger verifier
+              </Link>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section className="card stack">

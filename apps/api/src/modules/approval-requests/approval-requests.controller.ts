@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   Headers,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -83,6 +84,7 @@ export class ApprovalRequestsController {
   }
 
   @Post('internal/expire-sweep')
+  @HttpCode(200)
   @ApiOperation({ summary: 'Expire pending approval requests whose expiry has passed' })
   @ApiOkResponse({ description: 'Expiration sweep completed.' })
   expireSweep(
@@ -177,6 +179,7 @@ export class ApprovalRequestsController {
   }
 
   @Post(':id/secure-approve')
+  @HttpCode(200)
   @ApiOperation({ summary: 'Approve a pending request using an approval access token' })
   @ApiQuery({ name: 'token', required: true })
   @ApiOkResponse({ description: 'Approval request approved.' })
@@ -223,6 +226,7 @@ export class ApprovalRequestsController {
   }
 
   @Post(':id/secure-reject')
+  @HttpCode(200)
   @ApiOperation({ summary: 'Reject a pending request using an approval access token' })
   @ApiQuery({ name: 'token', required: true })
   @ApiOkResponse({ description: 'Approval request rejected.' })

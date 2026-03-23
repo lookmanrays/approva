@@ -4,6 +4,7 @@ import type {
   OrganizationMemberRole,
   OrganizationPermission,
 } from '@approva/shared';
+import { hasOrganizationPermission } from '@approva/shared';
 import type { PrismaDbClient } from '../../common/prisma/prisma.types';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -30,21 +31,46 @@ export class OrganizationRbacService {
     dashboardUserId?: string | null,
     prisma: PrismaDbClient = this.prisma,
   ): Promise<AuthorizedOrganizationMember> {
-    void permission;
-    void dashboardUserId;
+    const userId = this.normalizeOptionalString(dashboardUserId);
+
+    if (!userId) {
+      throw new ForbiddenException(
+        'Local console authentication is required before using this operator endpoint.',
+      );
+    }
+
     const organization = await this.organizationsService.resolveOrganization(
       organizationInput,
       prisma,
     );
-    const operator = await this.organizationsService.ensureLocalOperatorOwnership(
-      organization.id,
-      prisma,
-    );
+    const membership = await prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: organization.id,
+          userId,
+        },
+      },
+      select: {
+        role: true,
+      },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException(
+        'You are not a member of this organization and cannot use this operator endpoint.',
+      );
+    }
+
+    if (!hasOrganizationPermission(membership.role, permission)) {
+      throw new ForbiddenException(
+        `Your role does not have the required permission for ${permission}.`,
+      );
+    }
 
     return {
       organizationId: organization.id,
-      userId: operator.userId,
-      role: operator.role,
+      userId,
+      role: membership.role,
     };
   }
 
@@ -112,6 +138,7 @@ export class OrganizationRbacService {
         organizationId,
         user: {
           email,
+          disabledAt: null,
         },
       },
       select: {

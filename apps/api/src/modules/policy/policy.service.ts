@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreatePolicyInput,
   DeletePolicyResponse,
@@ -115,16 +115,23 @@ export class PolicyService {
     organizationInput: OrganizationContextInput = {},
   ): Promise<PolicyRule> {
     const organization = await this.organizationsService.resolveOrganization(organizationInput);
-    const policy = await this.prisma.policy.create({
-      data: {
-        organizationId: organization.id,
-        action: this.normalizeMatchValue(input.action),
-        resourceType: this.normalizeMatchValue(input.resourceType),
-        riskLevel: input.riskLevel,
-        approvalRequired: input.approvalRequired,
-        approverRoles: input.approverRoles,
-      },
-    });
+    let policy: Policy;
+
+    try {
+      policy = await this.prisma.policy.create({
+        data: {
+          organizationId: organization.id,
+          action: this.normalizeMatchValue(input.action),
+          resourceType: this.normalizeMatchValue(input.resourceType),
+          riskLevel: input.riskLevel,
+          approvalRequired: input.approvalRequired,
+          approverRoles: input.approverRoles,
+        },
+      });
+    } catch (error) {
+      this.rethrowPolicyConflict(error, input);
+      throw error;
+    }
 
     return this.toPolicyRule(policy);
   }
@@ -137,18 +144,25 @@ export class PolicyService {
     const organization = await this.organizationsService.resolveOrganization(organizationInput);
     await this.assertPolicyExists(id, organization.id);
 
-    const policy = await this.prisma.policy.update({
-      where: {
-        id,
-      },
-      data: {
-        action: this.normalizeMatchValue(input.action),
-        resourceType: this.normalizeMatchValue(input.resourceType),
-        riskLevel: input.riskLevel,
-        approvalRequired: input.approvalRequired,
-        approverRoles: input.approverRoles,
-      },
-    });
+    let policy: Policy;
+
+    try {
+      policy = await this.prisma.policy.update({
+        where: {
+          id,
+        },
+        data: {
+          action: this.normalizeMatchValue(input.action),
+          resourceType: this.normalizeMatchValue(input.resourceType),
+          riskLevel: input.riskLevel,
+          approvalRequired: input.approvalRequired,
+          approverRoles: input.approverRoles,
+        },
+      });
+    } catch (error) {
+      this.rethrowPolicyConflict(error, input);
+      throw error;
+    }
 
     return this.toPolicyRule(policy);
   }
@@ -263,5 +277,19 @@ export class PolicyService {
   private normalizeMatchValue(value: string) {
     const normalized = value.trim();
     return normalized.length > 0 ? normalized : '*';
+  }
+
+  private rethrowPolicyConflict(
+    error: unknown,
+    input: Pick<CreatePolicyInput, 'action' | 'resourceType' | 'riskLevel'>,
+  ) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(
+        `A policy for action "${this.normalizeMatchValue(input.action)}", resource type "${this.normalizeMatchValue(input.resourceType)}", and risk level "${input.riskLevel}" already exists. Edit that rule instead of creating a duplicate.`,
+      );
+    }
   }
 }

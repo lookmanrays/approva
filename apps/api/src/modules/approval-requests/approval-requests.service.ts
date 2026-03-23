@@ -906,6 +906,11 @@ export class ApprovalRequestsService {
           });
         }
 
+        const decisionAuthContext = this.buildDecisionAuthContext(
+          input.authContext,
+          decisionAuthorization,
+        );
+
         const decidedAt = new Date();
         const updateResult = await tx.approvalRequest.updateMany({
           where: {
@@ -933,7 +938,7 @@ export class ApprovalRequestsService {
             approverDisplayName: input.approverDisplayName,
             reason: input.reason,
             authMethod: input.authMethod ?? 'manual',
-            authContext: toPrismaOptionalJson(input.authContext ?? {}),
+            authContext: toPrismaOptionalJson(decisionAuthContext),
           },
         });
 
@@ -954,7 +959,7 @@ export class ApprovalRequestsService {
                     decisionId: recordedDecision.id,
                     approverId: input.approverId,
                     authMethod: input.authMethod ?? 'manual',
-                    authContext: input.authContext ?? null,
+                    authContext: decisionAuthContext,
                     deliverCapabilityMode: request.deliverCapabilityMode,
                   }
                 : {
@@ -963,7 +968,7 @@ export class ApprovalRequestsService {
                     approverId: input.approverId,
                     reason: input.reason ?? null,
                     authMethod: input.authMethod ?? 'manual',
-                    authContext: input.authContext ?? null,
+                    authContext: decisionAuthContext,
                   },
           },
           tx,
@@ -1252,7 +1257,8 @@ export class ApprovalRequestsService {
                 id: callbackConfiguration.machinePrincipalId,
               }
             : null,
-        expiresAt: expiresAt.toISOString(),
+        // Only include expiry in the replay fingerprint when the caller set it explicitly.
+        expiresAt: input.expiresAt ? expiresAt.toISOString() : null,
       }),
     };
   }
@@ -1735,6 +1741,20 @@ export class ApprovalRequestsService {
 
     const value = input.authContext.approverEmail;
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  }
+
+  private buildDecisionAuthContext(
+    authContext: Record<string, unknown> | null | undefined,
+    authorization: ApproverAuthorizationSummary,
+  ) {
+    return {
+      ...(authContext ?? {}),
+      approverEmail: authorization.approverEmail ?? null,
+      approverRole: authorization.approverRole ?? null,
+      allowedApproverRoles: authorization.allowedRoles,
+      authorizationCode: authorization.code,
+      authorizationMessage: authorization.message,
+    };
   }
 
   private extractAllowedApproverRoles(policyResult: Prisma.JsonValue | null) {

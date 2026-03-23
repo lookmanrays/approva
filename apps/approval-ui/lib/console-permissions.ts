@@ -1,23 +1,30 @@
-import type { OrganizationPermission } from '@approva/shared';
+import {
+  hasOrganizationPermission,
+  type ConsoleSessionState,
+  type OrganizationPermission,
+} from '@approva/shared';
+import { requireConsolePageSession } from './console-proxy';
 
-function buildSelfHostedPermissionContext() {
+function buildPermissionContext(session: ConsoleSessionState) {
   return {
-    session: null,
-    activeRole: 'owner' as const,
-    can(_permission: OrganizationPermission) {
-      return true;
+    session,
+    activeRole: session.activeRole ?? null,
+    can(permission: OrganizationPermission) {
+      return hasOrganizationPermission(session.activeRole, permission);
     },
   };
 }
 
-export function getActiveOrganizationRole() {
-  return 'owner' as const;
-}
-
 export async function getConsolePermissionContext() {
-  return buildSelfHostedPermissionContext();
+  return buildPermissionContext(await requireConsolePageSession());
 }
 
-export async function requireConsolePermission(_permission: OrganizationPermission) {
-  return buildSelfHostedPermissionContext();
+export async function requireConsolePermission(permission: OrganizationPermission) {
+  const context = buildPermissionContext(await requireConsolePageSession());
+
+  if (!context.can(permission)) {
+    throw new Error(`Missing console permission: ${permission}`);
+  }
+
+  return context;
 }

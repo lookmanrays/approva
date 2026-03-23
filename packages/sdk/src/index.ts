@@ -26,10 +26,6 @@ import type {
   PasskeyAuthenticationFinishResponse,
   PasskeyAuthenticationStartInput,
   PasskeyAuthenticationStartResponse,
-  PasskeyRegistrationFinishInput,
-  PasskeyRegistrationFinishResponse,
-  PasskeyRegistrationStartInput,
-  PasskeyRegistrationStartResponse,
   PolicyListResponse,
   PolicyRule,
   RevokeOrganizationApiKeyResponse,
@@ -69,7 +65,9 @@ export class ApprovalClient {
     this.apiKey = options.apiKey;
     this.headers = options.headers ?? {};
     this.credentials = options.credentials;
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher =
+      options.fetcher ??
+      ((input, init) => globalThis.fetch(input, init));
   }
 
   requestApproval(
@@ -159,24 +157,6 @@ export class ApprovalClient {
     input: ExchangeCapabilityInput,
   ): Promise<ExchangeCapabilityResponse> {
     return this.request('/v1/capabilities/exchange', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-  }
-
-  startPasskeyRegistration(
-    input: PasskeyRegistrationStartInput,
-  ): Promise<PasskeyRegistrationStartResponse> {
-    return this.request('/v1/auth/passkeys/register/start', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
-  }
-
-  finishPasskeyRegistration(
-    input: PasskeyRegistrationFinishInput,
-  ): Promise<PasskeyRegistrationFinishResponse> {
-    return this.request('/v1/auth/passkeys/register/finish', {
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -416,10 +396,6 @@ export {
   type PasskeyAuthenticationFinishResponse,
   type PasskeyAuthenticationStartInput,
   type PasskeyAuthenticationStartResponse,
-  type PasskeyRegistrationFinishInput,
-  type PasskeyRegistrationFinishResponse,
-  type PasskeyRegistrationStartInput,
-  type PasskeyRegistrationStartResponse,
   type RevokeOrganizationApiKeyResponse,
   type RevokeServiceAccountResponse,
   type RejectRequestInput,

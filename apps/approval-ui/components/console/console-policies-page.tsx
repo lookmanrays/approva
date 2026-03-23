@@ -17,20 +17,55 @@ import {
 
 const RISK_LEVEL_OPTIONS: RiskLevel[] = ['low', 'medium', 'high', 'critical'];
 const ROLE_OPTIONS: OrganizationMemberRole[] = ['owner', 'admin', 'member', 'approver'];
+const ACTION_SUGGESTIONS = [
+  '*',
+  'deployment.execute',
+  'deployment.rollback',
+  'service.restart',
+  'secrets.read',
+  'database.migrate',
+];
+const RESOURCE_TYPE_SUGGESTIONS = [
+  '*',
+  'service',
+  'deployment',
+  'cluster',
+  'database',
+  'secret',
+];
+const OUTCOME_OPTIONS = [
+  {
+    value: 'approval_required',
+    label: 'Require approval',
+    description: 'Pause the request until an allowed human approver records a decision.',
+  },
+  {
+    value: 'auto_approve',
+    label: 'Auto-approve',
+    description: 'Let matching requests continue immediately without human approval.',
+  },
+  {
+    value: 'reject',
+    label: 'Reject immediately',
+    description: 'Deny matching requests as soon as the policy matches.',
+  },
+] as const;
+
+type PolicyOutcome = (typeof OUTCOME_OPTIONS)[number]['value'];
 
 type PolicyFormState = {
   action: string;
   resourceType: string;
   riskLevel: RiskLevel;
-  approvalRequired: boolean;
+  outcome: PolicyOutcome;
   approverRoles: OrganizationMemberRole[];
 };
 
 const DEFAULT_FORM_STATE: PolicyFormState = {
-  action: '*',
-  resourceType: '*',
-  riskLevel: 'high',
-  approvalRequired: true,
+  action: '',
+  resourceType: '',
+  riskLevel: 'medium',
+  outcome: 'approval_required',
   approverRoles: ['owner', 'admin', 'approver'],
 };
 
@@ -39,12 +74,14 @@ function formatTimestamp(value: string) {
 }
 
 function toPolicyInput(state: PolicyFormState): CreatePolicyInput {
+  const outcome = state.outcome;
+
   return {
     action: state.action.trim() || '*',
     resourceType: state.resourceType.trim() || '*',
     riskLevel: state.riskLevel,
-    approvalRequired: state.approvalRequired,
-    approverRoles: state.approverRoles,
+    approvalRequired: outcome !== 'auto_approve',
+    approverRoles: outcome === 'approval_required' ? state.approverRoles : [],
   };
 }
 
@@ -58,6 +95,18 @@ function getPolicyOutcome(policy: PolicyRule) {
   }
 
   return 'Approval required';
+}
+
+function getEditablePolicyOutcome(policy: PolicyRule): PolicyOutcome {
+  if (!policy.approvalRequired) {
+    return 'auto_approve';
+  }
+
+  if (policy.approverRoles.length === 0) {
+    return 'reject';
+  }
+
+  return 'approval_required';
 }
 
 export function ConsolePoliciesPage({
@@ -77,6 +126,42 @@ export function ConsolePoliciesPage({
   const title = useMemo(
     () => (editingPolicyId ? 'Edit policy' : 'Create policy'),
     [editingPolicyId],
+  );
+  const normalizedAction = form.action.trim() || '*';
+  const normalizedResourceType = form.resourceType.trim() || '*';
+  const matchingPolicy = useMemo(
+    () =>
+      policies.find(
+        (policy) =>
+          policy.id !== editingPolicyId &&
+          policy.action === normalizedAction &&
+          policy.resourceType === normalizedResourceType &&
+          policy.riskLevel === form.riskLevel,
+      ) ?? null,
+    [editingPolicyId, form.riskLevel, normalizedAction, normalizedResourceType, policies],
+  );
+  const actionSuggestions = useMemo(
+    () =>
+      Array.from(
+        new Set([...ACTION_SUGGESTIONS, ...policies.map((policy) => policy.action)]),
+      ),
+    [policies],
+  );
+  const resourceTypeSuggestions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...RESOURCE_TYPE_SUGGESTIONS,
+          ...policies.map((policy) => policy.resourceType),
+        ]),
+      ),
+    [policies],
+  );
+  const outcomeDescription = useMemo(
+    () =>
+      OUTCOME_OPTIONS.find((option) => option.value === form.outcome)?.description ??
+      OUTCOME_OPTIONS[0].description,
+    [form.outcome],
   );
 
   const loadPolicies = async () => {
@@ -108,10 +193,18 @@ export function ConsolePoliciesPage({
     setError(null);
 
     try {
+      if (form.outcome === 'approval_required' && form.approverRoles.length === 0) {
+        setError('Select at least one approver role, or choose "Reject immediately" instead.');
+        setSubmitting(false);
+        return;
+      }
+
       const payload = toPolicyInput(form);
 
       if (editingPolicyId) {
         await updateConsolePolicy(editingPolicyId, payload);
+      } else if (matchingPolicy) {
+        await updateConsolePolicy(matchingPolicy.id, payload);
       } else {
         await createConsolePolicy(payload);
       }
@@ -144,76 +237,165 @@ export function ConsolePoliciesPage({
             is limited to organization owners and admins.
           </div>
         ) : (
-          <form className="console-filter-grid" onSubmit={handleSubmit}>
-            <label className="field">
-              <span>Action</span>
-              <input
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    action: event.target.value,
-                  }))
-                }
-                placeholder="deployment.execute or *"
-                value={form.action}
-              />
-            </label>
+          <form className="console-policy-form" onSubmit={handleSubmit}>
+            <div className="console-policy-note">
+              <div className="label">How matching works</div>
+              <p>
+                Policies compare the action, resource type, and risk level sent by approval
+                requests. Action and resource type are free-form keys, so enter the exact values
+                your agents or API clients send.
+              </p>
+            </div>
 
-            <label className="field">
-              <span>Resource type</span>
-              <input
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    resourceType: event.target.value,
-                  }))
-                }
-                placeholder="service or *"
-                value={form.resourceType}
-              />
-            </label>
+            {matchingPolicy ? (
+              <div className="notice warning">
+                <strong>Matching rule already exists.</strong>
+                <div>
+                  Saving this form will update the existing rule for{' '}
+                  <span className="mono">
+                    {normalizedAction} / {normalizedResourceType} / {form.riskLevel}
+                  </span>{' '}
+                  instead of creating a duplicate.
+                </div>
+              </div>
+            ) : null}
 
-            <label className="field">
-              <span>Risk level</span>
-              <select
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    riskLevel: event.target.value as RiskLevel,
-                  }))
-                }
-                value={form.riskLevel}
-              >
-                {RISK_LEVEL_OPTIONS.map((riskLevel) => (
-                  <option key={riskLevel} value={riskLevel}>
-                    {riskLevel}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="console-policy-grid">
+              <label className="field">
+                <span>Action</span>
+                <input
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      action: event.target.value,
+                    }))
+                  }
+                  placeholder="deployment.execute"
+                  value={form.action}
+                />
+                <span className="helper">
+                  Example: <span className="mono">deployment.execute</span>
+                </span>
+                <div className="console-policy-suggestions">
+                  {actionSuggestions.map((action) => (
+                    <button
+                      className={`console-policy-suggestion${
+                        form.action === action ? ' active' : ''
+                      }`}
+                      key={action}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          action,
+                        }))
+                      }
+                      type="button"
+                    >
+                      {action}
+                    </button>
+                  ))}
+                </div>
+              </label>
 
-            <label className="field checkbox-field">
-              <span>Approval required</span>
-              <input
-                checked={form.approvalRequired}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    approvalRequired: event.target.checked,
-                  }))
-                }
-                type="checkbox"
-              />
-            </label>
+              <label className="field">
+                <span>Resource type</span>
+                <input
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      resourceType: event.target.value,
+                    }))
+                  }
+                  placeholder="service"
+                  value={form.resourceType}
+                />
+                <span className="helper">
+                  Example: <span className="mono">service</span>,{' '}
+                  <span className="mono">database</span>,{' '}
+                  <span className="mono">secret</span>
+                </span>
+                <div className="console-policy-suggestions">
+                  {resourceTypeSuggestions.map((resourceType) => (
+                    <button
+                      className={`console-policy-suggestion${
+                        form.resourceType === resourceType ? ' active' : ''
+                      }`}
+                      key={resourceType}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          resourceType,
+                        }))
+                      }
+                      type="button"
+                    >
+                      {resourceType}
+                    </button>
+                  ))}
+                </div>
+              </label>
 
-            <div className="field field-span-2">
+              <label className="field">
+                <span>Risk level</span>
+                <select
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      riskLevel: event.target.value as RiskLevel,
+                    }))
+                  }
+                  value={form.riskLevel}
+                >
+                  {RISK_LEVEL_OPTIONS.map((riskLevel) => (
+                    <option key={riskLevel} value={riskLevel}>
+                      {riskLevel}
+                    </option>
+                  ))}
+                </select>
+                <span className="helper">Only match requests evaluated at this risk level.</span>
+              </label>
+
+              <label className="field">
+                <span>Rule outcome</span>
+                <select
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      outcome: event.target.value as PolicyOutcome,
+                    }))
+                  }
+                  value={form.outcome}
+                >
+                  {OUTCOME_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="helper">{outcomeDescription}</span>
+              </label>
+            </div>
+
+            <div className="field">
               <span>Approver roles</span>
+              <div className="helper">
+                {form.outcome === 'approval_required'
+                  ? 'Select which organization roles can approve matching requests.'
+                  : form.outcome === 'reject'
+                    ? 'Approver roles are not used when the rule rejects immediately.'
+                    : 'Approver roles are not used when the rule auto-approves requests.'}
+              </div>
               <div className="checkbox-grid">
                 {ROLE_OPTIONS.map((role) => (
-                  <label className="checkbox-chip" key={role}>
+                  <label
+                    className={`checkbox-chip${
+                      form.approverRoles.includes(role) ? ' checked' : ''
+                    }${form.outcome !== 'approval_required' ? ' disabled' : ''}`}
+                    key={role}
+                  >
                     <input
                       checked={form.approverRoles.includes(role)}
-                      disabled={!form.approvalRequired}
+                      disabled={form.outcome !== 'approval_required'}
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
@@ -228,15 +410,21 @@ export function ConsolePoliciesPage({
                   </label>
                 ))}
               </div>
-              <p className="helper">
-                If approval is required and no approver roles are selected, the request is
-                rejected immediately.
-              </p>
+              {form.outcome === 'approval_required' ? (
+                <p className="helper">
+                  Choose at least one role here, or switch the outcome to{' '}
+                  <strong>Reject immediately</strong>.
+                </p>
+              ) : null}
             </div>
 
             <div className="console-filter-actions">
               <button className="button primary" disabled={submitting} type="submit">
-                {submitting ? 'Saving...' : title}
+                {submitting
+                  ? 'Saving...'
+                  : editingPolicyId || matchingPolicy
+                    ? 'Save policy'
+                    : title}
               </button>
               <button className="button ghost" onClick={resetForm} type="button">
                 Clear
@@ -321,7 +509,7 @@ export function ConsolePoliciesPage({
                         action: policy.action,
                         resourceType: policy.resourceType,
                         riskLevel: policy.riskLevel,
-                        approvalRequired: policy.approvalRequired,
+                        outcome: getEditablePolicyOutcome(policy),
                         approverRoles: policy.approverRoles,
                       });
                     }}

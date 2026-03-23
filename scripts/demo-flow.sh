@@ -93,7 +93,7 @@ CREATE_RESPONSE="$(curl_json POST "${API_BASE_URL}/v1/approval-requests" "{
   \"riskLevel\": \"high\",
   \"resource\": {
     \"type\": \"service\",
-    \"id\": \"billing-api\"
+    \"id\": \"deploy-controller\"
   },
   \"params\": {
     \"environment\": \"production\",
@@ -115,8 +115,8 @@ echo "Console detail: ${CONSOLE_DETAIL_URL}"
 echo ""
 echo "What to do now:"
 echo "1. Open the approval URL in your browser."
-echo "2. If this is your first run, register a passkey for approver@example.com."
-echo "3. Approve the request."
+echo "2. Sign in to the console and add a passkey for a local user if you have not done that yet."
+echo "3. Authenticate on the approval page with that user and approve the request."
 echo "4. Keep this terminal open while Approva waits for the result."
 echo ""
 

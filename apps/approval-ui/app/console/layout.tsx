@@ -1,20 +1,34 @@
 import Link from 'next/link';
 import type { PropsWithChildren } from 'react';
+import { hasOrganizationPermission } from '@approva/shared';
 import { ConsoleNav } from '@/components/console/console-nav';
-import { buildDefaultOrganization, buildSelfHostedOperatorIdentity } from '@/lib/self-host';
+import { ConsoleLogoutButton } from '@/components/console/console-logout-button';
+import { requireConsolePageSession } from '@/lib/console-proxy';
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConsoleLayout({ children }: PropsWithChildren) {
-  const operator = buildSelfHostedOperatorIdentity();
-  const activeOrganization = buildDefaultOrganization();
+  const session = await requireConsolePageSession();
+  const activeOrganization = session.activeOrganization;
+  const canManageOrganization = hasOrganizationPermission(
+    session.activeRole,
+    'organization:manage',
+  );
   const navLinks = [
     {
       href: '/console/approvals',
       label: 'Approvals',
     },
+    ...(canManageOrganization
+      ? [
+          {
+            href: '/console/users',
+            label: 'Users',
+          },
+        ]
+      : []),
     {
       href: '/console/policies',
       label: 'Policies',
@@ -36,6 +50,10 @@ export default async function ConsoleLayout({ children }: PropsWithChildren) {
       label: 'Ledger',
     },
     {
+      href: '/console/settings',
+      label: 'Settings',
+    },
+    {
       href: '/help',
       label: 'Help',
     },
@@ -52,39 +70,53 @@ export default async function ConsoleLayout({ children }: PropsWithChildren) {
   return (
     <div className="console-shell">
       <header className="console-topbar">
-        <div className="console-brand">
-          <span className="eyebrow">Approva Open Core</span>
-          <div className="console-brand-copy">
-            <h1>Inspect approvals, decisions, capabilities, and the ledger chain.</h1>
-            <p>
-              Self-hosted operator console for approvals, policies, integrations, machine access,
-              and ledger inspection.
-            </p>
+        <div className="console-topbar-main">
+          <div className="console-brand">
+            <span className="eyebrow">Operator Console</span>
+            <div className="console-brand-copy">
+              <h1>Approva Console</h1>
+              <p>
+                Review approvals and manage policies, integrations, machine access, and ledger
+                activity for the default organization.
+              </p>
+            </div>
+          </div>
+
+          <div className="console-topbar-meta">
+            <div className="console-meta-strip">
+              <span className="console-meta-pill">
+                {session.user?.name ?? session.user?.email ?? 'Console user'}
+              </span>
+              <span className="console-meta-pill">{session.user?.email ?? 'No email'}</span>
+              <span className="console-meta-pill">
+                {`${activeOrganization?.name ?? 'No organization'} · ${session.activeRole ?? 'no role'}`}
+              </span>
+            </div>
+            <div className="console-links">
+              <Link className="console-link" href="/">
+                Approval UI
+              </Link>
+              <a
+                className="console-link"
+                href={`${apiBaseUrl}/docs`}
+                rel="noreferrer"
+                target="_blank"
+              >
+                API Docs
+              </a>
+              <ConsoleLogoutButton />
+            </div>
           </div>
         </div>
 
         <div className="console-topbar-actions">
           <ConsoleNav links={navLinks} />
-          <div className="console-session-badge">
-            <div className="console-session-copy">
-              <span className="label">Operator session</span>
-              <strong>{operator.email}</strong>
-              <span>Local console access uses the default organization directly.</span>
-              <span>{`${activeOrganization.name} · owner`}</span>
-            </div>
-          </div>
-          <div className="console-links">
-            <Link className="console-link" href="/">
-              Approval UI
-            </Link>
-            <a
-              className="console-link"
-              href={`${apiBaseUrl}/docs`}
-              rel="noreferrer"
-              target="_blank"
-            >
-              API Docs
-            </a>
+          <div className="console-topbar-security">
+            <div className="label">Console access</div>
+            <p className="console-topbar-note">
+              Console sign-in uses a local authenticated session. Approval links are separate and
+              still require the secure link plus passkey authentication.
+            </p>
           </div>
         </div>
       </header>

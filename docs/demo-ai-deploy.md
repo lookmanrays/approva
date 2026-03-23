@@ -87,10 +87,9 @@ This token scopes which request can be viewed and decided.
 
 ### 3. Approver authenticates with a passkey
 
-The approval page uses the passkey flow:
+Passkeys are enrolled ahead of time from Console Settings for a managed local user.
+The approval page itself now only uses the authentication half of the passkey flow:
 
-- `POST /v1/auth/passkeys/register/start`
-- `POST /v1/auth/passkeys/register/finish`
 - `POST /v1/auth/passkeys/authenticate/start`
 - `POST /v1/auth/passkeys/authenticate/finish`
 

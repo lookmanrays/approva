@@ -1,5 +1,6 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type OrganizationMemberRole = 'owner' | 'admin' | 'member' | 'approver';
+export type LocalUserStatus = 'active' | 'disabled';
 export type IntegrationType = 'slack' | 'webhook' | 'email';
 export type OrganizationPermission =
   | 'console:view'
@@ -72,6 +73,101 @@ export interface OrganizationMembership {
   role: OrganizationMemberRole;
   createdAt: string;
   organization: Organization;
+}
+
+export interface ConsoleUser {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+export interface ConsoleAuthBootstrapStatusResponse {
+  bootstrapRequired: boolean;
+  bootstrapIdentity: {
+    email: string;
+    name: string;
+  } | null;
+}
+
+export interface ConsoleBootstrapInput {
+  password: string;
+}
+
+export interface ConsoleLoginInput {
+  email: string;
+  password: string;
+}
+
+export interface ConsoleSessionState {
+  authenticated: boolean;
+  user?: ConsoleUser | null;
+  activeOrganization?: Organization | null;
+  activeRole?: OrganizationMemberRole | null;
+  expiresAt?: string | null;
+}
+
+export interface ConsolePasskeyDevice {
+  id: string;
+  credentialId: string;
+  createdAt: string;
+  lastUsedAt?: string | null;
+  deviceType?: string | null;
+  backedUp?: boolean | null;
+}
+
+export interface ConsoleProfileResponse {
+  user: ConsoleUser;
+  activeOrganization?: Organization | null;
+  activeRole?: OrganizationMemberRole | null;
+  passwordConfigured: boolean;
+  passwordSetAt?: string | null;
+  passkeys: ConsolePasskeyDevice[];
+}
+
+export interface UpdateConsolePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface DeleteConsolePasskeyResponse {
+  deleted: true;
+  credentialId: string;
+}
+
+export interface LocalUserRecord {
+  id: string;
+  email: string;
+  name: string | null;
+  role: OrganizationMemberRole;
+  status: LocalUserStatus;
+  isBootstrapOperator: boolean;
+  createdAt: string;
+  disabledAt?: string | null;
+  passwordConfigured: boolean;
+  passkeyCount: number;
+  lastPasskeyUsedAt?: string | null;
+}
+
+export interface LocalUserListResponse {
+  items: LocalUserRecord[];
+}
+
+export interface CreateLocalUserInput {
+  email: string;
+  name: string;
+  password: string;
+  role: OrganizationMemberRole;
+}
+
+export interface UpdateLocalUserInput {
+  name: string;
+  role: OrganizationMemberRole;
+  password?: string;
+}
+
+export interface RemoveLocalUserResponse {
+  removed: true;
+  id: string;
 }
 
 export interface CurrentOrganizationResponse {
@@ -535,6 +631,23 @@ export interface InternalTimelineEntry {
   payloadHash: string;
   ledgerSequence?: number | null;
   ledgerEntryHash?: string | null;
+}
+
+export interface OrganizationSecurityEvent {
+  immutableEventId: string;
+  eventType: string;
+  createdAt: string;
+  actorType?: string | null;
+  actorId?: string | null;
+  actorDisplay?: string | null;
+  payload: Record<string, unknown>;
+  payloadHash: string;
+  ledgerSequence?: number | null;
+  ledgerEntryHash?: string | null;
+}
+
+export interface OrganizationSecurityEventListResponse {
+  items: OrganizationSecurityEvent[];
 }
 
 export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed';

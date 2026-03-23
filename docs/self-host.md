@@ -11,10 +11,22 @@ Open-core mode is the default in this repository.
 When `APPROVA_RUNTIME_MODE=open-core`:
 
 - the default organization is created automatically
-- the console is available directly
+- the console is available through built-in local sign-in
 - approval decisions still require the secure approval link and passkey auth
 - service accounts, organization API keys, policies, integrations, audit, and ledger features stay enabled
 - health, readiness, metrics, and ledger verification endpoints stay available
+
+## Current Access Model
+
+Open-core currently separates these surfaces:
+
+- approval pages: intended to be reachable by human approvers, but each request still needs the
+  secure approval URL and a passkey-authenticated approver session
+- console: built-in local sign-in creates a separate operator session
+- machine access: separate organization-scoped API keys and service accounts
+
+Console auth now exists, but this is still an operator/admin surface. Keep `/console` on trusted
+networks or behind additional deployment controls if you do not want it broadly reachable.
 
 ## Local Dev
 
@@ -39,6 +51,10 @@ Open:
 - Console: [http://localhost:3000/console/approvals](http://localhost:3000/console/approvals)
 - API docs: [http://localhost:4000/docs](http://localhost:4000/docs)
 - Health: [http://localhost:4000/health/ready](http://localhost:4000/health/ready)
+
+For local demos, the built-in sign-in flow is enough. For shared or internet-reachable
+deployments, keep the console separated from the public approval pages and use additional network
+or proxy controls where appropriate.
 
 ## Docker Self-Host
 
@@ -113,3 +129,6 @@ Useful endpoints:
 - Set HTTPS origins for the UI and API before using passkeys outside localhost.
 - Set `PASSKEY_RP_ID` and `PASSKEY_EXPECTED_ORIGINS` to the final console origin.
 - Configure `APPROVA_INTEGRATION_ENCRYPTION_KEY` if you plan to store secret-backed integrations.
+- Bootstrap the first console owner at `/sign-in` on first launch and set a strong password.
+- Recommended today: public approval pages, separately protected console/admin surfaces.
+- Multi-user management, profile/settings, and richer RBAC are still in progress.

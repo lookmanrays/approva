@@ -1,4 +1,5 @@
 import type {
+  CreateLocalUserInput,
   CreatePolicyInput,
   CreateOrganizationApiKeyInput,
   CreateOrganizationApiKeyResponse,
@@ -13,13 +14,18 @@ import type {
   InternalLedgerVerificationResult,
   IntegrationListResponse,
   IntegrationRecord,
+  LocalUserListResponse,
+  LocalUserRecord,
+  OrganizationSecurityEventListResponse,
   OrganizationApiKeyListResponse,
   PolicyListResponse,
   PolicyRule,
   RevokeOrganizationApiKeyResponse,
   RevokeServiceAccountResponse,
+  RemoveLocalUserResponse,
   ServiceAccountListResponse,
   ServiceAccountRecord,
+  UpdateLocalUserInput,
   UpdateIntegrationInput,
   UpdatePolicyInput,
 } from '@approva/shared';
@@ -40,6 +46,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   };
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.location.assign(`/sign-in?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+      throw new Error('Redirecting to sign-in...');
+    }
+
     const message = payload.error?.message;
     throw new Error(Array.isArray(message) ? message.join(', ') : message ?? 'Request failed');
   }
@@ -195,5 +206,68 @@ export function revokeConsoleApiKey(
 ): Promise<RevokeOrganizationApiKeyResponse> {
   return request(`/api/console/api-keys/${id}/revoke`, {
     method: 'POST',
+  });
+}
+
+export function listConsoleLocalUsers(): Promise<LocalUserListResponse> {
+  return request('/api/console/users', {
+    method: 'GET',
+  });
+}
+
+export function listConsoleSecurityEvents(): Promise<OrganizationSecurityEventListResponse> {
+  return request('/api/console/system/security-events', {
+    method: 'GET',
+  });
+}
+
+export function createConsoleLocalUser(
+  input: CreateLocalUserInput,
+): Promise<LocalUserRecord> {
+  return request('/api/console/users', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateConsoleLocalUser(
+  userId: string,
+  input: UpdateLocalUserInput,
+): Promise<LocalUserRecord> {
+  return request(`/api/console/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export function disableConsoleLocalUser(userId: string): Promise<LocalUserRecord> {
+  return request(`/api/console/users/${userId}/disable`, {
+    method: 'POST',
+  });
+}
+
+export function enableConsoleLocalUser(userId: string): Promise<LocalUserRecord> {
+  return request(`/api/console/users/${userId}/enable`, {
+    method: 'POST',
+  });
+}
+
+export function grantConsoleLocalUserOwner(userId: string): Promise<LocalUserRecord> {
+  return request(`/api/console/users/${userId}/grant-owner`, {
+    method: 'POST',
+  });
+}
+
+export function reduceConsoleLocalUserOwner(userId: string): Promise<LocalUserRecord> {
+  return request(`/api/console/users/${userId}/reduce-owner`, {
+    method: 'POST',
+  });
+}
+
+export function removeConsoleLocalUser(
+  userId: string,
+): Promise<RemoveLocalUserResponse> {
+  return request(`/api/console/users/${userId}`, {
+    method: 'DELETE',
   });
 }

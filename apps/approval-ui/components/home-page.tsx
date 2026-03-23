@@ -27,31 +27,60 @@ export function HomePage() {
   };
 
   return (
-    <main className="shell">
-      <section className="hero">
-        <span className="eyebrow">Approva</span>
-        <h1>Approve risky AI actions without losing traceability.</h1>
-        <p>
-          Approva is human approval infrastructure for AI actions. This UI resolves
-          a request by id, surfaces the action context, and submits an approval or
-          rejection against the API while capability binding and audit-chain
-          recording stay server-side.
-        </p>
-        <div className="notice info">
-          <strong>Deployment</strong>
-          <div>
-            This deployment uses the default organization path for self-host operator access.
+    <main className="shell home-shell">
+      <section className="card home-masthead">
+        <div className="home-masthead-bar">
+          <span className="eyebrow">Approva Open Core</span>
+          <div className="home-masthead-links">
+            <a className="home-masthead-link" href="/console/approvals">
+              Console
+            </a>
+            <a className="home-masthead-link" href="/help">
+              Help
+            </a>
+            <a className="home-masthead-link" href="/demo/ai-deploy">
+              Demo
+            </a>
+          </div>
+        </div>
+
+        <div className="home-masthead-grid">
+          <div className="home-copy">
+            <h1>Human approval for risky AI actions.</h1>
+            <p>
+              Open an approval request, review action context, authenticate the approver with a
+              passkey, and let Approva issue scoped capabilities while the audit and ledger chain
+              stay intact.
+            </p>
+          </div>
+
+          <div className="home-status-card">
+            <div className="label">Current deployment</div>
+            <div className="home-status-list">
+              <div className="home-status-item">
+                <strong>Console access</strong>
+                <span>Default organization path is enabled for self-host operation.</span>
+              </div>
+              <div className="home-status-item">
+                <strong>Approval auth</strong>
+                <span>Approval pages require the secure request link plus passkey flow.</span>
+              </div>
+              <div className="home-status-item">
+                <strong>Runtime</strong>
+                <span>Audit events, immutable log, ledger, API keys, and service accounts stay local.</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="grid two">
-        <article className="card stack">
+      <section className="grid two home-grid">
+        <article className="card stack home-primary-card">
           <div>
             <div className="label">Open request</div>
             <h2>Load a specific approval request</h2>
           </div>
-          <form className="stack" onSubmit={handleSubmit}>
+          <form className="stack home-request-form" onSubmit={handleSubmit}>
             <label className="field">
               <span>Approval URL or request id</span>
               <input
@@ -60,13 +89,18 @@ export function HomePage() {
                 placeholder="Paste the approval URL returned by the API"
               />
             </label>
-            <button className="button primary" type="submit">
-              Open approval
-            </button>
+            <div className="home-request-actions">
+              <button className="button primary" type="submit">
+                Open approval
+              </button>
+              <span className="helper">
+                Paste the full approval URL or just the request id.
+              </span>
+            </div>
           </form>
         </article>
 
-        <aside className="card stack">
+        <aside className="card stack home-side-card">
           <div>
             <div className="label">Demo flow</div>
             <h2>Run the AI deploy approval scenario</h2>
@@ -76,18 +110,20 @@ export function HomePage() {
             a human authenticates with a passkey, a scoped capability is issued,
             and the agent uses it before deployment execution is recorded.
           </p>
-          <a className="button primary link-button" href="/demo/ai-deploy">
-            Open AI deploy demo
-          </a>
-          <a className="button ghost link-button" href="/console/approvals">
-            Open console
-          </a>
-          <a className="button ghost link-button" href="/help">
-            Open help
-          </a>
+          <div className="home-side-actions">
+            <a className="button primary link-button" href="/demo/ai-deploy">
+              Open AI deploy demo
+            </a>
+            <a className="button ghost link-button" href="/console/approvals">
+              Open console
+            </a>
+            <a className="button ghost link-button" href="/help">
+              Open help
+            </a>
+          </div>
           <div className="empty">
             The demo page creates a production deployment approval request for
-            <span className="mono"> billing-api</span> and shows the live event chain.
+            <span className="mono"> deploy-controller</span> and shows the live event chain.
           </div>
           <div className="empty">
             Approval request pages continue to use the secure approval token plus passkey flow.
